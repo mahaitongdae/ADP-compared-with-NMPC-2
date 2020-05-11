@@ -3,7 +3,7 @@ from __future__ import print_function
 class GeneralConfig(object):
     BATCH_SIZE = 32
 
-class StateConfig(GeneralConfig):
+class Dynamics_Config(GeneralConfig):
     a = 1.14       # distance c.g.to front axle(m)
     L = 2.54       # wheel base(m)
     b = L - a      # distance c.g.to rear axle(m)
@@ -24,10 +24,10 @@ class StateConfig(GeneralConfig):
     F_z1 = m * g * b / L
     F_z2 = m * g * a / L
 
-    rho_epect = 100.0
+    rho_epect = 0.0
     rho_var = 0.3
 
-    rho_range = 1.7
+    y_range = 1
     psi_range = 0.7
     beta_range = 0.7
 

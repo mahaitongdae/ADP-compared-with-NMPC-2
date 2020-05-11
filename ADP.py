@@ -1,4 +1,4 @@
-import StateModel
+import Dynamic_Model
 import Solver
 import numpy as np
 from matplotlib import pyplot as plt
@@ -43,7 +43,7 @@ if __name__ == '__main__':
     # ADP solutions with structured policy
     policy = Policy(S_DIM, A_DIM, POLY_DEGREE, LR_P)
     value = Value(S_DIM, VALUE_POLY_DEGREE, LR_V)
-    statemodel = StateModel.StateModel()
+    statemodel = Dynamic_Model.Dynamic_Model()
     iteration_index = 0
     if LOAD_PARA_FLAG == 1:
         policy_w = np.loadtxt('2020-04-29, 00.42.25_policy_300000.txt').reshape([-1,1])
@@ -64,7 +64,7 @@ if __name__ == '__main__':
 
 
             # Policy Improvement
-            statemodel_pim = StateModel.StateModel()
+            statemodel_pim = Dynamic_Model.Dynamic_Model()
             PIM_iteration = 0
             policy.reset_grad()
             while True:
@@ -103,9 +103,9 @@ if __name__ == '__main__':
             iteration_index) + '.txt', policy_w)
 
     plt.figure(3)
-    statemodel_plt = StateModel.StateModel()
+    statemodel_plt = Dynamic_Model.Dynamic_Model()
     statemodel_plt.set_zero_state()
-    statemodel_plt_2 = StateModel.StateModel(linearity= True)
+    statemodel_plt_2 = Dynamic_Model.Dynamic_Model(linearity= True)
     statemodel_plt_2.set_zero_state()
     state = statemodel_plt.get_state()
     state_2 = statemodel_plt_2.get_state()

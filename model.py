@@ -1,7 +1,7 @@
 import numpy as np
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import PolynomialFeatures
-from StateModel import StateModel
+from Dynamic_Model import Dynamic_Model
 
 # import torch
 # import torch.nn as nn

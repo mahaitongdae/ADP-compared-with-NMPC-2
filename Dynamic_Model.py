@@ -1,14 +1,14 @@
 from __future__ import print_function
 import torch
 import numpy as np
-from Config import StateConfig
+from Config import Dynamics_Config
 import math
 
 PI = 3.1415926
 
 
 
-class StateModel(StateConfig):
+class Dynamic_Model(Dynamics_Config):
 
     def __init__(self, linearity = False):
         self._state = np.zeros([self.BATCH_SIZE, 5])
@@ -18,11 +18,11 @@ class StateModel(StateConfig):
         # super(StateModel, self).__init__()
 
     def _random_init(self):
-        self._state[:, 0] = self.rho_epect + self.rho_range / 4 * np.random.normal(self.BATCH_SIZE)
-        self._state[:, 1] = 1 * PI * np.random.rand(self.BATCH_SIZE)
-        self._state[:, 2] = 0.15 * np.random.rand(self.BATCH_SIZE)
-        self._state[:, 3] = 0.1 * np.random.rand(self.BATCH_SIZE)
-        self._state[:, 4] = 0.05 * np.random.rand(self.BATCH_SIZE)
+        self._state[:, 0] = self.y_range * np.random.normal(self.BATCH_SIZE)
+        self._state[:, 1] = 0.15 * np.random.rand(self.BATCH_SIZE)
+        self._state[:, 2] = 0.1 * np.random.rand(self.BATCH_SIZE)
+        self._state[:, 3] = 0.05 * np.random.rand(self.BATCH_SIZE)
+        self._state[:, 4] = 1 * PI * np.random.rand(self.BATCH_SIZE)
         init_state = self._state
         self.init_state = init_state
 
@@ -32,12 +32,12 @@ class StateModel(StateConfig):
                 self._state[i, :] = self.init_state[i, :]
 
     def set_zero_state(self):
-        self._state = np.array([self.rho_epect, 0., 0., 0., 0.])[np.newaxis, :]
+        self._state = np.array([0., 0., 0., 0., 0.])[np.newaxis, :]
 
     def check_done(self):
-        threshold = np.kron(np.ones([self.BATCH_SIZE, 1]), np.array([self.rho_range, self.psi_range, self.beta_range]))
-        check_state = self._state[:, [0, 2, 3]] - np.kron(np.ones([self.BATCH_SIZE, 1]), np.array([self.rho_epect, 0., 0.]))
-        sign_error = np.sign(np.abs(check_state) - threshold) # if abs is over threshold, sign_error = 1
+        threshold = np.kron(np.ones([self.BATCH_SIZE, 1]), np.array([self.y_range, self.psi_range]))
+        check_state = self._state[:, [0, 2]]
+        sign_error = np.sign(np.abs(check_state) - threshold) # if abs state is over threshold, sign_error = 1
         self._reset_index = np.max(sign_error, axis=1) # if one state is over threshold, _reset_index = 1
         self._reset_state()
 
@@ -60,7 +60,8 @@ class StateModel(StateConfig):
             control = control.reshape(1, -1)
 
         # input state
-        beta = state2d[:, 0]
+        u_lat = state2d[:, 0]
+        beta = u_lat / self.u
         omega_r = state2d[:, 1]
 
         # control
@@ -81,20 +82,20 @@ class StateModel(StateConfig):
             F_y1 = self.k1 * alpha_1
             F_y2 = self.k2 * alpha_2
 
-        deri_beta = (np.multiply(F_y1, np.cos(delta)) + F_y2) / (self.m * self.u) - omega_r
+        deri_u_lat = (np.multiply(F_y1, np.cos(delta)) + F_y2) / (self.m) - self.u * omega_r
         deri_omega_r = (np.multiply(self.a * F_y1, np.cos(delta)) - self.b * F_y2) / self.I_zz
 
         # when delta is small
-        # deri_beta = (F_y1 + F_y2) / (self.m * self.u) - omega_r
+        # deri_u_lat = (F_y1 + F_y2) / (self.m * self.u) - omega_r
         # deri_omega_r = (self.a * F_y1 - self.b * F_y2) / self.I_zz
 
-        deri_state = np.concatenate((deri_beta[np.newaxis, :], deri_omega_r[np.newaxis, :]), 0)
+        deri_state = np.concatenate((deri_u_lat[np.newaxis, :], deri_omega_r[np.newaxis, :]), 0)
 
         return deri_state.transpose(), F_y1, F_y2, alpha_1, alpha_2
 
     def _sf_with_axis_transform(self, control):
         """
-        state function with the axis transform, the true model of RL problem
+        state function with the axis transform, the true model of ADP problem
         Parameters
         ----------
         control : np.array
@@ -105,24 +106,28 @@ class StateModel(StateConfig):
         state_dot ： np.array
             shape: [batch, 4], the gradient of the state
         """
-        # state [\rho, \theta, \psi, \beta, \omega]
+        # state [\y, \psi, \beta, \omega, \x]
+        # x is not a state variable, only for plotting assist
         assert len(self._state.shape) == 2
 
-        rho = self._state[:, 0]
-        theta = self._state[:, 1]
-        psi = self._state[:, 2]
-        beta = self._state[:, 3]
-        omega = self._state[:, 4]
+        y = self._state[:, 0]           # lateral position of vehicle
+        v_lateral = self._state[:, 1]   # lateral speed
+        psi = self._state[:, 2]         # yaw angle
+        omega = self._state[:, 3]       # yaw rate
+        x = self._state[:, 4]           # longitudinal position
 
-        rho_dot = -self.u * np.sin(psi) - self.u * np.tan(beta) * np.cos(psi)
-        theta_dot = (self.u * np.cos(psi) - self.u * np.tan(beta) * np.sin(psi)) / rho
-        psi_dot = omega - theta_dot
-        state2d = self._state[:, 3:]  # .reshape(2, -1)
+        dot_y = self.u * np.sin(psi) + v_lateral * np.cos(psi)
+        dot_psi = omega
+        dot_x = self.u * np.cos(psi) - v_lateral * np.sin(psi)
+        state2d = self._state[:, [1, 3]]  # .reshape(2, -1)
         state2d_dot, F_y1, F_y2, _, _ = self._state_function(state2d, control)
-        state_dot = np.concatenate([rho_dot[:, np.newaxis],
-                                    theta_dot[:, np.newaxis],
-                                    psi_dot[:, np.newaxis],
-                                    state2d_dot], axis=1)
+        dot_u_lat = state2d_dot[:, 0]
+        dot_omega = state2d_dot[:, 1]
+        state_dot = np.concatenate([dot_y[:, np.newaxis],
+                                    dot_u_lat[:, np.newaxis],
+                                    dot_psi[:, np.newaxis],
+                                    dot_omega[:, np.newaxis],
+                                    dot_x[:, np.newaxis]], axis=1)
 
         return state_dot, F_y1, F_y2
 
@@ -146,21 +151,13 @@ class StateModel(StateConfig):
         l = self._utility(action)
 
         # state_derivative
-        f_xu = state_dot[:,[0, 2, 3, 4]]
+        f_xu = state_dot[:,[0, 1, 2, 3]]
 
-        # done
-        done = False
-        if np.abs(self._state[0, 0] - self.rho_epect) > self.rho_range:
-            done = True
+        # x is not a state
+        s = self._state[:, [0, 1, 2, 3]]
 
-        # \theta is not a state
-        s = self._state[:, [0, 2, 3, 4]]
 
-        # \theta is useful when plotting the trajectory
-        mask = self._state[:, 1]
-        s[:, 0] -= self.rho_epect
-
-        return s, l, f_xu,  mask, F_y1, F_y2
+        return s, l, f_xu, F_y1, F_y2
 
     def _utility(self, control):
         """
@@ -175,14 +172,13 @@ class StateModel(StateConfig):
         utility/cost
         """
         l = 0
-        l += 20 * np.power(self._state[:, 0] - self.rho_epect, 2)[:, np.newaxis]
+        l += 20 * np.power(self._state[:, 0], 2)[:, np.newaxis]
         l += 0.2 * np.power(self._state[:, 2], 2)[:, np.newaxis]
-        # if np.abs(control-0.4) > 0.1:
         l += 10 * np.power(control, 2)
         return l
 
     def get_state(self):
-        s = self._state[:, [0, 2, 3, 4]]
+        s = self._state[:, [0, 1, 2, 3]]
         s[:, 0] -= self.rho_epect
         return s
 
@@ -191,8 +187,7 @@ class StateModel(StateConfig):
         return s
 
     def set_state(self, origin_state):
-        self._state[:, [0, 2, 3, 4]] = origin_state
-        self._state[:, 0] += self.rho_epect
+        self._state[:, [0, 1, 2, 3]] = origin_state
 
     def set_real_state(self, state):
         self._state = state
@@ -200,7 +195,7 @@ class StateModel(StateConfig):
 
     def get_PIM_deri(self, control):
         p_l_u = 2 * 2 * control
-        # approximate partial derivative of f(x,u) with respect to u todo:是否能有准确的求导方式
+        # approximate partial derivative of f(x,u) with respect to u
         # control_ = control + 1e-3
         # f_xu = self._sf_with_axis_transform(state, control)
         # f_xu_ = self._sf_with_axis_transform(state, control_)
@@ -213,23 +208,23 @@ class StateModel(StateConfig):
         # alpha_1 = -delta + np.arctan(beta + self.a * omega / self.u)
         alpha_1 = -delta + beta + self.a * omega / self.u
 
-        para_beta = - self.mu * self.g / self.u / self.L * self.b
+        para_u_lat = - self.mu * self.g / self.L
         para_omega = - self.mu * self.a * self.b * self.m * self.g / self.I_zz / self.L
         temp1 = np.cos(self.C * np.arctan(self.B * alpha_1))
         temp2 = np.multiply(-self.C * self.B * np.reciprocal(1 + (self.B * alpha_1) ** 2), np.cos(delta))
         deri = np.multiply(temp1, temp2) - np.multiply(np.sin(self.C * np.arctan(self.B * alpha_1)), np.sin(delta))
 
-        # Fiala
-        partial_deri_beta = para_beta * deri
+        # Nonlinear tyre model
+        partial_deri_u_lat = para_u_lat * deri
         partial_deri_omega = para_omega * deri
 
-        # # linear
-        # partial_deri_beta = - self.k1 / (self.m * self.u) * (np.cos(delta) + np.multiply(alpha_1, np.sin(delta)))
+        # # linear tyre model
+        # partial_deri_u_lat = - self.k1 / (self.m * self.u) * (np.cos(delta) + np.multiply(alpha_1, np.sin(delta)))
         # partial_deri_omega = - self.a * self.k1 / self.I_zz * (np.cos(delta) + np.multiply(alpha_1, np.sin(delta)))
 
-        partial_deri_rho = np.zeros(shape)
+        partial_deri_y = np.zeros(shape)
         partial_deri_psi = np.zeros(shape)
-        p_f_u = np.concatenate([partial_deri_rho, partial_deri_psi, partial_deri_beta, partial_deri_omega], axis=1)
+        p_f_u = np.concatenate([partial_deri_y, partial_deri_u_lat, partial_deri_psi, partial_deri_omega], axis=1)
 
 
         return p_l_u, p_f_u
@@ -238,10 +233,10 @@ class StateModel(StateConfig):
         self._state = s
 
 def test():
-    statemodel = StateModel()
+    statemodel = Dynamic_Model()
     control = 0.01 * np.ones([statemodel.BATCH_SIZE, 1])
-    s, r, f_xu, mask, _, _ = statemodel.step(control)
-    statemodel.get_PIM_deri(control)
+    s, r, f_xu, _, _ = statemodel.step(control)
+    print(statemodel.get_PIM_deri(control))
     statemodel.check_done()
     print(f_xu)
 
