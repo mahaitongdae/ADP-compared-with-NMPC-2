@@ -6,7 +6,24 @@ import math
 
 PI = 3.1415926
 
+class Reference(Dynamics_Config):
+    def reference_trajectory_sin(self, x, length, k=1 / 5):
+        """
+        Generate reference trajectory of sin curves.
+        Assume no lateral speed.
 
+        :param x:
+        :param length:
+        :return:
+        """
+        reference_trajectory = np.zeros([length, 2])
+        psi = np.arctan(k * np.cos(k * x))
+        for i in range(length):
+            x = x + self.Ts * (self.u * np.cos(psi))
+            y = np.sin(k * x)
+            psi = np.arctan(k * np.cos(k * x))
+            reference_trajectory[i, :] = np.array([y, psi])
+        return reference_trajectory
 
 class Dynamic_Model(Dynamics_Config):
 
@@ -18,11 +35,11 @@ class Dynamic_Model(Dynamics_Config):
         # super(StateModel, self).__init__()
 
     def _random_init(self):
-        self._state[:, 0] = self.y_range * np.random.normal(self.BATCH_SIZE)
-        self._state[:, 1] = 0.15 * np.random.rand(self.BATCH_SIZE)
-        self._state[:, 2] = 0.1 * np.random.rand(self.BATCH_SIZE)
-        self._state[:, 3] = 0.05 * np.random.rand(self.BATCH_SIZE)
-        self._state[:, 4] = 1 * PI * np.random.rand(self.BATCH_SIZE)
+        self._state[:, 0] = np.random.normal(0.0, self.y_range , self.BATCH_SIZE)
+        self._state[:, 1] =  np.random.normal(0.0, 0.15 , self.BATCH_SIZE)
+        self._state[:, 2] =  np.random.normal(0.0, 0.1 , self.BATCH_SIZE)
+        self._state[:, 3] =  np.random.normal(0.0, 0.05 , self.BATCH_SIZE)
+        self._state[:, 4] = 0 * PI * np.random.rand(self.BATCH_SIZE)
         init_state = self._state
         self.init_state = init_state
 
@@ -156,8 +173,10 @@ class Dynamic_Model(Dynamics_Config):
         # x is not a state
         s = self._state[:, [0, 1, 2, 3]]
 
+        # x is used to help plotting
+        position = self._state[:, 4]
 
-        return s, l, f_xu, F_y1, F_y2
+        return s, l, f_xu, position, F_y1, F_y2
 
     def _utility(self, control):
         """
@@ -179,7 +198,6 @@ class Dynamic_Model(Dynamics_Config):
 
     def get_state(self):
         s = self._state[:, [0, 1, 2, 3]]
-        s[:, 0] -= self.rho_epect
         return s
 
     def get_all_state(self):
@@ -235,7 +253,7 @@ class Dynamic_Model(Dynamics_Config):
 def test():
     statemodel = Dynamic_Model()
     control = 0.01 * np.ones([statemodel.BATCH_SIZE, 1])
-    s, r, f_xu, _, _ = statemodel.step(control)
+    s, r, f_xu, position, _, _ = statemodel.step(control)
     print(statemodel.get_PIM_deri(control))
     statemodel.check_done()
     print(f_xu)

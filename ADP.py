@@ -1,5 +1,4 @@
 import Dynamic_Model
-import Solver
 import numpy as np
 from matplotlib import pyplot as plt
 from model import Policy, Value
@@ -22,7 +21,7 @@ if __name__ == '__main__':
     R = 20
     N = 314
     NP = 10
-    MAX_ITERATION = 10
+    MAX_ITERATION = 100
     LR_P = 5e-3
     LR_V = 1e-2
     S_DIM = 4
@@ -30,12 +29,11 @@ if __name__ == '__main__':
     POLY_DEGREE = 2
     VALUE_POLY_DEGREE = 2
     BATCH_SIZE = 256
-    TRAIN_FLAG = 0
+    TRAIN_FLAG = 1
     LOAD_PARA_FLAG = 0
     MODEL_PRINT_FLAG = 1
     PEV_MAX_ITERATION = 100000
     PIM_MAX_ITERATION = 10000
-
 
     # Set random seed
     np.random.seed(0)
@@ -46,8 +44,8 @@ if __name__ == '__main__':
     statemodel = Dynamic_Model.Dynamic_Model()
     iteration_index = 0
     if LOAD_PARA_FLAG == 1:
-        policy_w = np.loadtxt('2020-04-29, 00.42.25_policy_300000.txt').reshape([-1,1])
-        value_w = np.loadtxt('2020-04-29, 00.42.25_value_300000.txt').reshape([-1,1])
+        policy_w = np.loadtxt('2020-05-11, 16.18.13_policy_1.txt').reshape([-1,1])
+        value_w = np.loadtxt('2020-05-11, 16.18.13_value_1.txt').reshape([-1,1])
         policy.set_w(policy_w)
         value.set_w(value_w)
     if TRAIN_FLAG ==1 :
@@ -70,7 +68,7 @@ if __name__ == '__main__':
             while True:
                 statemodel_pim.set_state(all_state_batch)
                 control = policy.predict(state_batch)
-                state_batch_next_pim, utility, f_xu, mask, _, _ = statemodel_pim.step(control)
+                state_batch_next_pim, utility, f_xu, x, _, _ = statemodel_pim.step(control)
                 p_l_u, p_f_u = statemodel_pim.get_PIM_deri(control)
                 p_V_x_next = value.get_derivative(state_batch_next_pim)
                 # policy_loss, grad_policy = policy.update(state_batch, hamilton, p_l_u, p_V_x, p_f_u)
@@ -105,35 +103,23 @@ if __name__ == '__main__':
     plt.figure(3)
     statemodel_plt = Dynamic_Model.Dynamic_Model()
     statemodel_plt.set_zero_state()
-    statemodel_plt_2 = Dynamic_Model.Dynamic_Model(linearity= True)
-    statemodel_plt_2.set_zero_state()
     state = statemodel_plt.get_state()
-    state_2 = statemodel_plt_2.get_state()
-    theta = np.array([0.])
-    theta_2 = np.array([0.])
-    plot_length = 314
+    longitudinal_position = np.array([0.])
+    plot_length = 500
     for i in range(plot_length):
-        # s = statemodel_plt.get_state()
-        # s_2 = statemodel_plt_2.get_state()
-        # control = policy.predict(s)
-        control = np.array([0.0345])
-        s, _, _, mask, F_y1, F_y2 = statemodel_plt.step(control)
-        s_2, _, _, mask_2, F_y1, F_y2 = statemodel_plt_2.step(control)
+        s = statemodel_plt.get_state()
+        control = policy.predict(s)
+        s, _, _, x, F_y1, F_y2 = statemodel_plt.step(control)
         state = np.append(state, s, axis=0)
-        theta = np.append(theta, mask, axis=0)
-        state_2 = np.append(state_2, s_2, axis=0)
-        theta_2 = np.append(theta_2, mask_2, axis=0)
-    plt.subplot(111, projection='polar')
-    plt.plot(theta, state[:, 0] + 100)
-    plt.plot(theta_2, state_2[:, 0] + 100)
+        longitudinal_position = np.append(longitudinal_position, x, axis=0)
+        print(i)
+    plt.plot(longitudinal_position, state[:, 0])
     plt.figure(4)
     plt.plot(range(plot_length+1), state[:, 1], label='psi')
-    # plt.plot(range(plot_length+1), state[:, 2], label='beta')
-    # plt.plot(range(plot_length+1), state[:, 3], label='omega')
+    plt.plot(range(plot_length+1), state[:, 2], label='beta')
+    plt.plot(range(plot_length+1), state[:, 3], label='omega')
     plt.legend(loc='upper right')
     plt.figure(5)
-    plt.plot(range(plot_length+1), theta, label='theta')
-    plt.legend(loc='upper right')
     plt.show()
     # np.savetxt('state.txt',state)
 

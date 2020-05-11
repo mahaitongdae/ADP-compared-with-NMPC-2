@@ -27,7 +27,7 @@ class Dynamics_Config(GeneralConfig):
     rho_epect = 0.0
     rho_var = 0.3
 
-    y_range = 1
+    y_range = 0.5
     psi_range = 0.7
     beta_range = 0.7
 

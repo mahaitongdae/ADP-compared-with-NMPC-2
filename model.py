@@ -236,7 +236,7 @@ class Value(object):
             grad_w = np.multiply(mtt, np.reciprocal(vtt_sqrt + self.e))
             self._w = self._w - self.lr * grad_w.T
             if i % 5000 == 0:
-                print('PEV | iteration:{:3d} | '.format(i)+'policy loss:{:3.3f}'.format(float(error)))
+                print('PEV | iteration:{:3d} | '.format(i)+'value loss:{:3.3f}'.format(float(error)))
 
         return float(error), grad_w
 
@@ -341,9 +341,7 @@ class Policy(object):
         self._poly_feature_dim = len(po.get_feature_names())
         self._pipeline = Pipeline([('poly', po)])
 
-        # self._w = np.zeros((self._poly_feature_dim, self._out_dim))
-        self._w =  np.random.random([self._poly_feature_dim, self._out_dim]) * 0.005
-        self._w[0, 0] = 0.0
+        self.reset_grad()
         self._logsigma = np.zeros((1, self._out_dim))
 
         self.beta1 = 0.9
@@ -357,7 +355,8 @@ class Policy(object):
         self.adam_v_mu = np.zeros((self._poly_feature_dim, self._out_dim))
 
     def reset_grad(self):
-        self._w = np.random.random([self._poly_feature_dim, self._out_dim]) * 0.005
+        self._w = np.random.random([self._poly_feature_dim, self._out_dim]) * 0.0005
+        self._w[0, 0] = 0.0
 
     def predict(self, X):
         """
