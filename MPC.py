@@ -46,12 +46,30 @@ U_LOWER = - inf
 U_UPPER = inf
 rho_epect = 100.0
 
-if __name__ == '__main__':
+def reference_trajectory(x, length, k = 1/5):
+    """
+    Generate reference trajectory of sin curves.
+    Assume no lateral speed.
+
+    :param x:
+    :param length:
+    :return:
+    """
+    reference_trajectory = np.zeros([length,2])
+    psi = np.arctan(k * np.cos(k * x))
+    for i in range(length):
+        x = x + T * (v_long * np.cos(psi))
+        y = np.sin(k * x)
+        psi = np.arctan(k * np.cos(k * x))
+        reference_trajectory[i, :] = np.array([y, psi])
+    return reference_trajectory
+
+def main():
     # Open loop solution
     sol_dic = {'ipopt.print_level': 0, 'ipopt.sb': 'yes', 'print_time': 0}
     x = SX.sym('x', nx)
     u = SX.sym('u', nu)
-    X_init = [100.0, 0.0, 0.1, 0.0, 0.0]
+    X_init = [0.0, 0.0, 0.0, 0.0, 0.0]
     zero = [0., 0., 0., 0., 0.]
 
     # Dynamic model
@@ -66,21 +84,21 @@ if __name__ == '__main__':
 
     # discrete
     f = vertcat(
-        x[0] + T * (-u_long * sin(x[2]) - u_long * tan(x[3]) * cos(x[2])),
-        x[1] + T * ((u_long * cos(x[2]) - u_long * tan(x[3]) * sin(x[2])) / 100 ),
-        x[2] + T * (x[4] - (u_long * cos(x[2]) - u_long * tan(x[3]) * sin(x[2])) / 100 ),
-        x[3] + T * ((-mu * F_z1 * sin(C * arctan(B * (-u[0] + (x[3] + a * x[4] / u_long)))) * cos(u[0])
-                     - mu * F_z2 * sin(C * arctan(B * (x[3] - b * x[4] / u_long)))) / (m * u_long) - x[4]),
-        x[4] + T * ((a * (-mu * F_z1 * sin(C * arctan(B * (-u[0] + (x[3] + a * x[4] / u_long))))) * cos(u[0])
-                     - b * ( -mu * F_z2 * sin(C * arctan(B * (x[3] - b * x[4] / u_long))))) / I_zz)
+        x[0] + T * (u_long * sin(x[2]) + x[1] * cos(x[2])),
+        x[1] + T * (-mu * F_z1 * sin(C * arctan(B * (-u[0] + (x[1] + a * x[3]) / u_long))) * cos(u[0])
+                    - mu * F_z2 * sin(C * arctan(B * ((x[1] - b * x[3]) / u_long))) / m - u_long * x[3]),
+        x[2] + T * (x[3]),
+        x[3] + T * (a * (-mu * F_z1 * sin(C * arctan(B * (-u[0] + (x[1] + a * x[3]) / u_long)))) * cos(u[0])
+                    - b * (-mu * F_z2 * sin(C * arctan(B * ((x[1] - b * x[3]) / u_long)))) / I_zz),
+        x[4] + T * (u_long * cos(x[2]) - x[1] * sin(x[2]))
     )
 
     # Create solver instance
     F = Function("F", [x, u], [f])
 
     # Empty NLP
-    w = []; lbw=[]; ubw=[];lbg = [];ubg = []
-    G = []; J = 0
+    w = [];    lbw = [];    ubw = [];    lbg = [];    ubg = []
+    G = [];    J = 0
 
     # Initial conditions
     Xk = MX.sym('X0', nx)
@@ -88,12 +106,14 @@ if __name__ == '__main__':
     lbw += X_init
     ubw += X_init
 
-    for k in range(1, Npt+1):
+    # sin reference
+    reference = reference_trajectory(0, Npt)
 
+    for k in range(1, Npt + 1):
         # Local control
         Uname = 'U' + str(k - 1)
         Uk = MX.sym(Uname, nu)
-        w += [Uk]; lbw += [U_LOWER]; ubw += [U_UPPER]
+        w += [Uk];        lbw += [U_LOWER];        ubw += [U_UPPER]
 
         Fk = F(Xk, Uk)
         Xname = 'X' + str(k)
@@ -108,32 +128,42 @@ if __name__ == '__main__':
         ubw += [inf, inf, inf, inf, inf]
 
         # Cost function
-        F_cost = Function('F_cost', [x, u], [10 * (x[0] - 100) ** 2 + 0.2 * x[2] ** 2 + 20 * u[0] ** 2])
+        F_cost = Function('F_cost', [x, u], [10 * (x[0] - reference[k-1, 0]) ** 2
+                                             + 0.2 * (x[2] - reference[k-1, 1]) ** 2 + 20 * u[0] ** 2])
         J += F_cost(w[k * 2], w[k * 2 - 1])
-
 
     # Create NLP solver
     nlp = dict(f=J, g=vertcat(*G), x=vertcat(*w))
     S = nlpsol('S', 'ipopt', nlp, sol_dic)
 
     # Solve NLP
-    r = S(lbx=lbw, ubx=ubw, x0=0,lbg=lbg,ubg=ubg)
+    r = S(lbx=lbw, ubx=ubw, x0=0, lbg=lbg, ubg=ubg)
     print(r['x'])
     state_all = np.array(r['x'])
-    state = np.zeros([Npt, nx]); control = np.zeros([Npt, nu])
+    state = np.zeros([Npt, nx]);    control = np.zeros([Npt, nu])
+    nt = nx + nu # total variable per step
 
-
-    for i in range(314):
-        state[i] = state_all[6*i : 6*i+5].reshape(-1)
-        control[i] = state_all[6 * i + 5]
+    for i in range(Npt):
+        state[i] = state_all[nt * i: nt * i + nt - 1].reshape(-1)
+        control[i] = state_all[nt * i + nt - 1]
 
     # Draw figures
     plt.figure(1)
-    plt.plot(range(314), control)
+    plt.plot(range(Npt), control)
     plt.figure(2)
-    plt.subplot(111, projection='polar')
-    plt.plot(state[:, 1], state[:, 0])
+    plt.plot(state[:, 4], state[:, 0])
     plt.show()
 
     # MPC solution
 
+def test():
+    ref = reference_trajectory(0, 100)
+    plt.figure(1)
+    plt.plot(ref[:, 0], ref[:, 1])
+    plt.plot(ref[:, 0], ref[:, 2])
+    plt.show()
+
+
+if __name__ == '__main__':
+    main()
+    # test()
