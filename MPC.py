@@ -37,12 +37,23 @@ rho_epect = 100.0
 
 def reference_trajectory(x, length, k = 1/5):
     """
-    Generate reference trajectory of sin curves.
-    Assume no lateral speed.
+    Generate reference trajectory of sin curve.
+    Parameters
+    ----------
+    x: np.array([nx, 1])
+        start longitudinal position of reference trajectory.
+    length: steps of prediction horizon, int
+    k: int
+        k in the curve shape of sin(kx), int
 
-    :param x:
-    :param length:
-    :return:
+    Returns
+    -------
+    reference_trajectory: np.array([nx,3])
+        reference trajectory of [y, psi, x]
+        y: lateral position
+        psi: vehicle yaw angle
+        x: vehicle longitudinal position
+
     """
     reference_trajectory = np.zeros([length,3])
     psi = np.arctan(k * np.cos(k * x))
