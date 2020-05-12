@@ -24,7 +24,7 @@ F_z2 = m * g * a / L
 
 #constants
 T  = 0.1
-Np = 20
+Np = 40
 Npt = 314
 nx = 5
 nu = 1
@@ -44,13 +44,13 @@ def reference_trajectory(x, length, k = 1/5):
     :param length:
     :return:
     """
-    reference_trajectory = np.zeros([length,2])
+    reference_trajectory = np.zeros([length,3])
     psi = np.arctan(k * np.cos(k * x))
     for i in range(length):
         x = x + T * (v_long * np.cos(psi))
         y = np.sin(k * x)
         psi = np.arctan(k * np.cos(k * x))
-        reference_trajectory[i, :] = np.array([y, psi])
+        reference_trajectory[i, :] = np.array([y, psi, x])
     return reference_trajectory
 
 def MPC_slover(x_init, Np):
@@ -118,10 +118,46 @@ def MPC_slover(x_init, Np):
 
     # Solve NLP
     r = S(lbx=lbw, ubx=ubw, x0=0, lbg=lbg, ubg=ubg)
-    print(r['x'])
+    # print(r['x'])
     u = np.array(r['x'])[nx+1]
+    x_next = np.array(r['x'])[nx+2:nx+2+nx].reshape(-1)
 
-    return u
+    state_all = np.array(r['x'])
+    state = np.zeros([Np, nx]);
+    control = np.zeros([Np, nu])
+    nt = nx + nu  # total variable per step
+
+    for i in range(Np):
+        state[i] = state_all[nt * i: nt * i + nt - 1].reshape(-1)
+        control[i] = state_all[nt * i + nt - 1]
+
+    plt.figure(1)
+    plt.plot(state[1:, 4], state[1:, 0], label='estimate trajectory')
+    plt.plot(reference[:, -1], reference[:, 0], label='reference trajectory')
+    # plt.plot(range(Np), state[:, 0], label='estimate trajectory')
+    # plt.plot(range(Np), reference[:, 0], label='reference trajectory')
+    plt.legend(loc='upper right')
+    plt.show()
+
+    return control, state
 
 def main():
+    x_init = [0., 0., 0.2, 0., 0.]
+    u_history = np.zeros([Npt, 1])
+    x_history = np.zeros([Npt, nx])
+    for i in range(20):
+        control, state = MPC_slover(x_init, Np)
+        u_history[i] = control[0]
+        x_history[i] = state[1].reshape(-1)
+        x_init = x_history[i].tolist()
+        print("steps:",i)
+
+    plt.figure(1)
+    plt.plot(x_history[:,-1],u_history)
+    plt.figure(2)
+    plt.plot(x_history[:,-1], x_history[:,0])
+    plt.show()
+
+if __name__ == '__main__':
+    main()
 

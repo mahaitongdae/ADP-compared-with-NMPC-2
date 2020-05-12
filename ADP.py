@@ -22,8 +22,8 @@ if __name__ == '__main__':
     R = 20
     N = 314
     NP = 10
-    MAX_ITERATION = 100
-    LR_P = 5e-3
+    MAX_ITERATION = 20
+    LR_P = 1e-3
     LR_V = 1e-2
     S_DIM = 4
     A_DIM = 1
@@ -34,7 +34,7 @@ if __name__ == '__main__':
     LOAD_PARA_FLAG = 0
     MODEL_PRINT_FLAG = 1
     PEV_MAX_ITERATION = 100000
-    PIM_MAX_ITERATION = 10000
+    PIM_MAX_ITERATION = 1000
 
     # Set random seed
     np.random.seed(0)
@@ -80,7 +80,7 @@ if __name__ == '__main__':
                 V_next = policy.predict(state_batch_next_pim)
                 policy_loss, grad_policy = policy.update_discrete(state_batch, utility, V_next, p_l_u, p_V_x_next, 0.1 * p_f_u)
                 if MODEL_PRINT_FLAG == 1:
-                    if PIM_iteration % 2000 == 0:
+                    if PIM_iteration % 500 == 0:
                         print('PIM | iteration:{:3d} | '.format(PIM_iteration)+'policy loss:{:3.3f}'.format(policy_loss))
                 PIM_iteration += 1
                 if policy_loss < 1e-2 or PIM_iteration > PIM_MAX_ITERATION:

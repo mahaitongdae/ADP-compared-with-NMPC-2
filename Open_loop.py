@@ -35,7 +35,7 @@ F_z2 = m * g * a / L
 
 #constants
 T  = 0.1
-Np = 20
+Np = 40
 Npt = 314
 nx = 5
 nu = 1
@@ -48,20 +48,25 @@ rho_epect = 100.0
 
 def reference_trajectory(x, length, k = 1/5):
     """
-    Generate reference trajectory of sin curves.
-    Assume no lateral speed.
+    Generate reference trajectory of sin curve.
+    Parameters
+    ----------
+    x: np.array([nx, 1])
+        start longitudinal position of reference trajectory.
+    length: steps of prediction horizon, int
+    k: k in the curve shape of sin(kx), int
 
-    :param x:
-    :param length:
-    :return:
+    Returns
+    -------
+
     """
-    reference_trajectory = np.zeros([length,2])
+    reference_trajectory = np.zeros([length,3])
     psi = np.arctan(k * np.cos(k * x))
     for i in range(length):
         x = x + T * (v_long * np.cos(psi))
         y = np.sin(k * x)
         psi = np.arctan(k * np.cos(k * x))
-        reference_trajectory[i, :] = np.array([y, psi])
+        reference_trajectory[i, :] = np.array([y, psi, x])
     return reference_trajectory
 
 def main():
@@ -107,7 +112,7 @@ def main():
     ubw += X_init
 
     # sin reference
-    reference = reference_trajectory(0, Npt)
+    reference = reference_trajectory(0, Npt, k=1/10)
 
     for k in range(1, Npt + 1):
         # Local control
@@ -129,7 +134,8 @@ def main():
 
         # Cost function
         F_cost = Function('F_cost', [x, u], [10 * (x[0] - reference[k-1, 0]) ** 2
-                                             + 0.2 * (x[2] - reference[k-1, 1]) ** 2 + 20 * u[0] ** 2])
+                                             + 0.2 * (x[2] - reference[k-1, 1]) ** 2
+                                             + 20 * u[0] ** 2])
         J += F_cost(w[k * 2], w[k * 2 - 1])
 
     # Create NLP solver
@@ -151,7 +157,10 @@ def main():
     plt.figure(1)
     plt.plot(range(Npt), control)
     plt.figure(2)
-    plt.plot(state[:, 4], state[:, 0])
+    plt.plot(state[:, 4], state[:, 0], label='trajectory')
+    plt.plot(reference[:, -1], reference[:, 0], label='reference trajectory')
+    plt.legend(loc='lower left')
+    plt.plot()
     plt.show()
 
 def test():

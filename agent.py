@@ -60,8 +60,14 @@ class Policy(object):
         action : np.array
             shape : (1, action_dim)
         """
+        action = self.preprocess(X).dot(self._w)
+        for i in range(action.shape[0]):
+            if action[i] >= np.pi / 6:
+                action[i] = np.pi / 6
+            elif action[i] <= -np.pi / 6:
+                action[i] = -np.pi / 6
 
-        return self.preprocess(X).dot(self._w)
+        return action
 
     def update(self, state,  hamilton, p_l_u, p_V_x, p_f_u):
         """
@@ -107,6 +113,8 @@ class Policy(object):
         # state_batch_next, utility, f_xu, mask, _, _ = statemodel_pim.step(control)
         loss = utility + V_next # TODO:V也要每一步更新 那么只能放在外面 这一步没有办法包装在Policy中
         loss = loss.mean()
+        if loss < 0:
+            print("pause")
         return loss, grad_w
 
     def preprocess(self, X):
@@ -411,12 +419,14 @@ class Critic(nn.Module):
 
         target_v = torch.as_tensor(target_v).detach()
 
-        for _ in range(100):
+        while True:
             v = self._evaluate0(state)
             v_loss = torch.mean((v - target_v) * (v - target_v))
             self._opt.zero_grad()  # TODO
             v_loss.backward(retain_graph=True)
             self._opt.step()
+            if v_loss.detach().numpy() < 1:
+                break
 
         return v_loss
 
