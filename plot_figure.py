@@ -11,7 +11,7 @@ POLY_DEGREE = 2
 LR_P = 1e-2
 
 
-def Trajectory(x, k=1 / 5):
+def Trajectory(x, k=1 / 10):
     lane_position = 1 * np.sin(k * x)
     lane_angle = 1 * np.arctan(k * np.cos(k * x))
 
@@ -21,13 +21,13 @@ policy = Policy(S_DIM, A_DIM, POLY_DEGREE, LR_P)
 # value = Value(S_DIM, VALUE_POLY_DEGREE, LR_V)
 value = Critic(S_DIM, A_DIM)
 
-load_dir = "./Results_dir/2020-05-12-21-49-100"
+load_dir = "./Results_dir/2020-05-12-23-22-100"
 policy.load_parameters(load_dir)
 value.load_parameters(load_dir)
 
 plt.figure(3)
 statemodel_plt = Dynamic_Model.Dynamic_Model()
-statemodel_plt.set_real_state(np.array([0.0, 0.0, 0.0, 0.0, 0.0]))
+statemodel_plt.set_real_state(np.array([1.0, 0.0, 0.0, 0.0, 0.0]))
 state = statemodel_plt.get_state()
 x = np.array([0.])
 longitudinal_position = x

@@ -396,7 +396,7 @@ class Critic(nn.Module):
             v_loss.backward(retain_graph=True)
             self._opt.step()
             i += 1
-            if v_loss.detach().numpy() < 1 or i >= 100:
+            if v_loss.detach().numpy() < 0.1 or i >= 100:
                 break
 
         return v_loss

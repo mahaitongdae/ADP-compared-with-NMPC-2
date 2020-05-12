@@ -17,7 +17,7 @@ class Dynamics_Config(GeneralConfig):
     k1 = -88000    # front axle cornering stiffness for linear model (N / rad)
     k2 = -94000    # rear axle cornering stiffness for linear model (N / rad)
     Is = 1.        # steering ratio
-    Ts = 0.1       # control signal period
+    Ts = 0.01       # control signal period
     v_long = 15.   # longitudinal speed
     N = 314        # total simulation steps
 
@@ -27,7 +27,7 @@ class Dynamics_Config(GeneralConfig):
     rho_epect = 0.0
     rho_var = 0.3
 
-    y_range = 0.5
+    y_range = 1
     psi_range = 0.7
     beta_range = 0.7
 

@@ -35,7 +35,7 @@ if __name__ == '__main__':
     LOAD_PARA_FLAG = 0
     MODEL_PRINT_FLAG = 1
     PEV_MAX_ITERATION = 100000
-    PIM_MAX_ITERATION = 1000
+    PIM_MAX_ITERATION = 2000
 
     # ==================== Set log path ====================
     log_dir = "./Results_dir/" + datetime.now().strftime("%Y-%m-%d-%H-%M-"+str(MAX_ITERATION))
@@ -52,7 +52,7 @@ if __name__ == '__main__':
     statemodel = Dynamic_Model.Dynamic_Model()
     iteration_index = 0
     if LOAD_PARA_FLAG == 1:
-        load_dir = "./Results_dir/2020-05-12-20-37-3"
+        load_dir = "./Results_dir/2020-05-12-23-01-100"
         policy.load_parameters(load_dir)
         value.load_parameters(load_dir)
     if TRAIN_FLAG == 1 :
@@ -82,7 +82,7 @@ if __name__ == '__main__':
                 p_V_x_next = value.get_derivative(state_batch_next_pim)
                 # policy_loss, grad_policy = policy.update(state_batch, hamilton, p_l_u, p_V_x, p_f_u)
                 V_next = value.predict(state_batch_next_pim)
-                policy_loss, grad_policy = policy.update_discrete(state_batch, utility, V_next, p_l_u, p_V_x_next, 0.1 * p_f_u)
+                policy_loss, grad_policy = policy.update_discrete(state_batch, utility, V_next, p_l_u, p_V_x_next, 0.01 * p_f_u)
                 if MODEL_PRINT_FLAG == 1:
                     if PIM_iteration % 500 == 0:
                         print('PIM | iteration:{:3d} | '.format(PIM_iteration)+'policy loss:{:3.3f}'.format(policy_loss))
