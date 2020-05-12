@@ -92,8 +92,8 @@ class Dynamic_Model(Dynamics_Config):
 
         if self.linearity == True:
             # Fiala tyre model
-            F_y1 = -self.mu * self.F_z1 * np.sin(self.C * np.arctan(self.B * alpha_1))
-            F_y2 = -self.mu * self.F_z2 * np.sin(self.C * np.arctan(self.B * alpha_2))
+            F_y1 = -self.D * self.F_z1 * np.sin(self.C * np.arctan(self.B * alpha_1))
+            F_y2 = -self.D * self.F_z2 * np.sin(self.C * np.arctan(self.B * alpha_2))
         else:
             # linear tyre model
             F_y1 = self.k1 * alpha_1
@@ -208,6 +208,8 @@ class Dynamic_Model(Dynamics_Config):
         self._state[:, [0, 1, 2, 3]] = origin_state
 
     def set_real_state(self, state):
+        if len(state.shape) == 1:
+            state = state.reshape(1,-1)
         self._state = state
 
 
@@ -226,8 +228,8 @@ class Dynamic_Model(Dynamics_Config):
         # alpha_1 = -delta + np.arctan(beta + self.a * omega / self.u)
         alpha_1 = -delta + beta + self.a * omega / self.u
 
-        para_u_lat = - self.mu * self.g / self.L
-        para_omega = - self.mu * self.a * self.b * self.m * self.g / self.I_zz / self.L
+        para_u_lat = - self.D * self.g * self.b / self.L
+        para_omega = - self.D * self.a * self.b * self.m * self.g / self.I_zz / self.L
         temp1 = np.cos(self.C * np.arctan(self.B * alpha_1))
         temp2 = np.multiply(-self.C * self.B * np.reciprocal(1 + (self.B * alpha_1) ** 2), np.cos(delta))
         deri = np.multiply(temp1, temp2) - np.multiply(np.sin(self.C * np.arctan(self.B * alpha_1)), np.sin(delta))
@@ -250,6 +252,63 @@ class Dynamic_Model(Dynamics_Config):
     def set_state(self, s):
         self._state = s
 
+class StateModel(Dynamics_Config):
+
+    def __init__(self):
+
+        super(StateModel, self).__init__()
+
+    def StateFunction(self, state, control):  # 连续状态方程，state：torch.Size([1024, 2])，control：torch.Size([1024, 1])
+
+        # 状态输入
+        y = state[:, 0]
+        u_lateral = state[:, 1]
+        beta = u_lateral / self.u       # 质心侧偏角：torch.Size([1024])
+        psi = state[:, 2]
+        omega_r = state[:, 3]           # 横摆角速度：torch.Size([1024])
+
+        # 控制输入
+        delta = control[:, 0]  # 前轮转角：torch.Size([1024])
+        delta.requires_grad_(True)
+
+        # 前后轮侧偏角
+        # alpha_1 = -delta + torch.atan(beta + self.a * omega_r / self.u)
+        # alpha_2 = torch.atan(beta - self.b * omega_r / self.u)
+        # # 前后轮侧偏角（对前轮速度与x轴夹角xi以及后轮侧偏角alpha_2做小角度假设）
+        alpha_1 = -delta + beta + self.a * omega_r / self.u
+        alpha_2 = beta - self.b * omega_r / self.u
+
+        # 前后轮侧偏力
+        F_y1 = -self.D * torch.sin(self.C * torch.atan(self.B * alpha_1)) * self.F_z1
+        F_y2 = -self.D * torch.sin(self.C * torch.atan(self.B * alpha_2)) * self.F_z2
+
+        # 状态输出：torch.Size([1024])
+        deri_y = self.u * torch.sin(psi) + u_lateral * torch.cos(psi)
+        deri_u_lat = (torch.mul(F_y1, torch.cos(delta)) + F_y2) / (self.m) - self.u * omega_r
+        deri_psi = omega_r
+        deri_omega_r = (torch.mul(self.a * F_y1, torch.cos(delta)) - self.b * F_y2) / self.I_zz
+        # # 状态输出（对前轮转角delta做小角度假设）
+        # deri_beta = (F_y1 + F_y2) / (self.m * self.u) - omega_r
+        # deri_omega_r = (self.a * F_y1 - self.b * F_y2) / self.I_zz
+
+        # 按行拼接：torch.Size([2, 1024])
+        deri_state = torch.cat((deri_y[np.newaxis, :],
+                                deri_u_lat[np.newaxis, :],
+                                deri_psi[np.newaxis, :],
+                                deri_omega_r[np.newaxis, :]), 0)
+
+        partial_deri_y, = torch.autograd.grad(deri_y, delta, retain_graph=True)
+        partial_deri_omega_r, = torch.autograd.grad(deri_omega_r, delta, retain_graph=True)
+        partial_deri_u_lat, = torch.autograd.grad(deri_u_lat, delta, retain_graph=True)
+        partial_deri_psi, = torch.autograd.grad(deri_psi, delta, retain_graph=True)
+
+        partial_deri = torch.cat((partial_deri_y[np.newaxis, :],
+                                partial_deri_u_lat[np.newaxis, :],
+                                partial_deri_psi[np.newaxis, :],
+                                partial_deri_omega_r[np.newaxis, :]), 0)
+
+        return deri_state, F_y1, F_y2, alpha_1, alpha_2, partial_deri.detach().numpy()
+
 def test():
     statemodel = Dynamic_Model()
     control = 0.01 * np.ones([statemodel.BATCH_SIZE, 1])
@@ -258,6 +317,18 @@ def test():
     statemodel.check_done()
     print(f_xu)
 
+def test_partial_deri():
+    statemodel = StateModel()
+    state = torch.from_numpy(np.array([[0,0,0,0,0]], dtype='float32'))
+    control = torch.tensor([[0.3]])
+    deri_state, F_y1, F_y2, alpha_1, alpha_2, partial_deri = statemodel.StateFunction(state, control)
+    print(partial_deri)
+    statemodel2 = Dynamic_Model()
+    statemodel2.set_real_state(np.array([0.0,0.0,0.0,0.0,0.0]))
+    control = np.array([[0.3]])
+    _, pfu = statemodel2.get_PIM_deri(control)
+    pfu[:, 1] = pfu[:, 1] / 20
+    print(pfu)
 
 if __name__ == "__main__":
-    test()
+    test_partial_deri()

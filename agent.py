@@ -133,34 +133,6 @@ class Policy(object):
             X = X.reshape(1, -1)
         return self._pipeline.fit_transform(X)
 
-    @staticmethod
-    def log_prob(x, mu, sigma):
-        """
-
-        Parameters
-        ----------
-        x : np.array
-            shape : (batch, action_dim), action
-        mu : np.array
-            shape : (batch, action_dim), mean
-        sigma : np.array
-            shape : (1, action_dim), std variance
-        Returns
-        -------
-        logprob : np.array
-            shape : (batch, 1), log probability of actions
-        grad_mu : np.array
-            shape : (batch, action_dim), d log pi / d mu
-        grad_logsigma : np.array
-            shape : (batch, action_dim), d log pi / d log sigma
-        """
-        sigma = sigma + 1e-8
-        logprob = - (x - mu) ** 2 / 2 / sigma / sigma - np.log(sigma) - 0.5 * LOG2Pi
-        logprob = np.prod(logprob, axis=1, keepdims=True)
-        grad_mu = (x - mu) / sigma / sigma
-        grad_logsigma = (x - mu) ** 2 / sigma / sigma - 1.0
-        return logprob, grad_mu, grad_logsigma
-
     def get_w(self):
         return self._w
 
@@ -170,19 +142,13 @@ class Policy(object):
         self._w = x
         # self._logsigma = y
 
-    def adam(self, grad_mu, grad_sig):
-        self.adam_t += 1
-        self.adam_m_mu = self.beta1 * self.adam_m_mu + (1 - self.beta1) * grad_mu
-        self.adam_v_mu = self.beta2 * self.adam_v_mu + (1 - self.beta2) * grad_mu ** 2
-        adam_m_mu_hat = self.adam_m_mu / (1 - pow(self.beta1, self.adam_t))
-        adam_v_mu_hat = self.adam_v_mu / (1 - pow(self.beta2, self.adam_t))
-        self._w += self.lr * adam_m_mu_hat / (np.sqrt(adam_v_mu_hat) + self.epsilon)
+    def save_parameters(self, logdir):
+        policy_w = self.get_w()
+        np.save(os.path.join(logdir, "actor"),policy_w)
 
-        self.adam_m_sig = self.beta1 * self.adam_m_sig + (1 - self.beta1) * grad_sig
-        self.adam_v_sig = self.beta2 * self.adam_v_sig + (1 - self.beta2) * grad_sig ** 2
-        adam_m_sig_hat = self.adam_m_sig / (1 - pow(self.beta1, self.adam_t))
-        adam_v_sig_hat = self.adam_v_sig / (1 - pow(self.beta2, self.adam_t))
-        self._logsigma += self.lr * adam_m_sig_hat / (np.sqrt(adam_v_sig_hat) + self.epsilon)
+    def load_parameters(self, load_dir):
+        policy_w = np.load(os.path.join(load_dir, 'actor.npy'))
+        self.set_w(policy_w)
 
 class Actor(nn.Module):
     """
@@ -418,14 +384,15 @@ class Critic(nn.Module):
         """
 
         target_v = torch.as_tensor(target_v).detach()
-
+        i = 0
         while True:
             v = self._evaluate0(state)
             v_loss = torch.mean((v - target_v) * (v - target_v))
             self._opt.zero_grad()  # TODO
             v_loss.backward(retain_graph=True)
             self._opt.step()
-            if v_loss.detach().numpy() < 1:
+            i += 1
+            if v_loss.detach().numpy() < 1 or i >= 100:
                 break
 
         return v_loss
@@ -463,6 +430,19 @@ class Critic(nn.Module):
         predict = self.forward(state_tensor)
         derivative, = torch.autograd.grad(torch.sum(predict), state_tensor)
         return derivative.detach().numpy()
+
+    def save_parameters(self, logdir):
+        """
+        save model
+        Parameters
+        ----------
+        logdir, the model will be saved in this path
+
+        """
+        torch.save(self.state_dict(), os.path.join(logdir, "critic.pth"))
+
+    def load_parameters(self, load_dir):
+        self.load_state_dict(torch.load(os.path.join(load_dir,'critic.pth')))
 
 def test():
     x = np.array([[1,2,3,4],[4,3,2,1]])

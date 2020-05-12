@@ -13,7 +13,7 @@ class Dynamics_Config(GeneralConfig):
     B = 14.        # parameter in Pacejka tire model
     u = 20         # longitudinal velocity(m / s)
     g = 9.81
-    mu = 1.0
+    D = 0.75
     k1 = -88000    # front axle cornering stiffness for linear model (N / rad)
     k2 = -94000    # rear axle cornering stiffness for linear model (N / rad)
     Is = 1.        # steering ratio
