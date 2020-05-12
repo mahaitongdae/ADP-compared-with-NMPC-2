@@ -73,7 +73,7 @@ if __name__ == '__main__':
             # Policy Improvement
             statemodel_pim = Dynamic_Model.Dynamic_Model()
             PIM_iteration = 0
-            policy.reset_grad()
+            policy.reset_parameters()
             while True:
                 statemodel_pim.set_state(all_state_batch)
                 control = policy.predict(state_batch)

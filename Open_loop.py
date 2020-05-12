@@ -54,10 +54,16 @@ def reference_trajectory(x, length, k = 1/5):
     x: np.array([nx, 1])
         start longitudinal position of reference trajectory.
     length: steps of prediction horizon, int
-    k: k in the curve shape of sin(kx), int
+    k: int
+        k in the curve shape of sin(kx), int
 
     Returns
     -------
+    reference_trajectory: np.array([nx,3])
+        reference trajectory of [y, psi, x]
+        y: lateral position
+        psi: vehicle yaw angle
+        x: vehicle longitudinal position
 
     """
     reference_trajectory = np.zeros([length,3])
@@ -77,17 +83,8 @@ def main():
     X_init = [0.0, 0.0, 0.0, 0.0, 0.0]
     zero = [0., 0., 0., 0., 0.]
 
-    # Dynamic model
+    # discrete dynamic model
 
-    # linear
-    # f = vertcat(
-    #     x[0] + T * (-u_long * sin(x[2])  - u_long * tan(x[3]) * cos(x[2])),
-    #     x[1] + T * (x[3] - (u_long * cos(x[1]) - u_long * tan(x[2]) * sin(x[1])) / 100),
-    #     x[2] + T * ((kf*(-u[0] + x[2] + a * x[3] / u_long) * cos(u[0]) + k2 * (x[2] - b * x[3] / u_long)) / (m * u_long) - x[3]),
-    #     x[3] + T * (a * (kf * (-u[0] + x[2] + a * x[3] / u_long) * cos(u[0]) - b * (kr * (x[2] - b * x[3] / u_long))) / I_zz)
-    # )
-
-    # discrete
     f = vertcat(
         x[0] + T * (u_long * sin(x[2]) + x[1] * cos(x[2])),
         x[1] + T * (-mu * F_z1 * sin(C * arctan(B * (-u[0] + (x[1] + a * x[3]) / u_long))) * cos(u[0])
@@ -101,7 +98,7 @@ def main():
     # Create solver instance
     F = Function("F", [x, u], [f])
 
-    # Empty NLP
+    # Create empty NLP
     w = [];    lbw = [];    ubw = [];    lbg = [];    ubg = []
     G = [];    J = 0
 
@@ -111,7 +108,7 @@ def main():
     lbw += X_init
     ubw += X_init
 
-    # sin reference
+    # reference trajectory
     reference = reference_trajectory(0, Npt, k=1/10)
 
     for k in range(1, Npt + 1):
@@ -149,6 +146,7 @@ def main():
     state = np.zeros([Npt, nx]);    control = np.zeros([Npt, nu])
     nt = nx + nu # total variable per step
 
+    # save trajectories
     for i in range(Npt):
         state[i] = state_all[nt * i: nt * i + nt - 1].reshape(-1)
         control[i] = state_all[nt * i + nt - 1]

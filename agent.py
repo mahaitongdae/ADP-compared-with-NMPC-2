@@ -30,7 +30,7 @@ class Policy(object):
         self._poly_feature_dim = len(po.get_feature_names())
         self._pipeline = Pipeline([('poly', po)])
 
-        self.reset_grad()
+        self.reset_parameters()
         self._logsigma = np.zeros((1, self._out_dim))
 
         self.beta1 = 0.9
@@ -43,7 +43,11 @@ class Policy(object):
         self.adam_m_mu = np.zeros((self._poly_feature_dim, self._out_dim))
         self.adam_v_mu = np.zeros((self._poly_feature_dim, self._out_dim))
 
-    def reset_grad(self):
+    def reset_parameters(self):
+        """
+        Reset parameters of policy approximate.
+
+        """
         self._w = np.random.random([self._poly_feature_dim, self._out_dim]) * 0.0005
         self._w[0, 0] = 0.0
 
@@ -299,7 +303,7 @@ class Actor(nn.Module):
 
 class Critic(nn.Module):
     """
-    value funtion with polynomial feature
+    value function with polynomial feature
     """
 
     def __init__(self, input_size, output_size, order=1, lr=0.01):
@@ -372,7 +376,7 @@ class Critic(nn.Module):
 
     def update(self, state, target_v):
         """
-        update paramters
+        update parameters
         Parameters
         ----------
         state: state batch, shape [batch, state dimension]
