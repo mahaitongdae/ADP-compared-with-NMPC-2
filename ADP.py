@@ -1,7 +1,8 @@
 import Dynamic_Model
 import numpy as np
+import torch
 from matplotlib import pyplot as plt
-from model import Policy, Value
+from agent import Policy, Critic
 import datetime
 
 if __name__ == '__main__':
@@ -37,10 +38,12 @@ if __name__ == '__main__':
 
     # Set random seed
     np.random.seed(0)
+    torch.manual_seed(0)
 
     # ADP solutions with structured policy
     policy = Policy(S_DIM, A_DIM, POLY_DEGREE, LR_P)
-    value = Value(S_DIM, VALUE_POLY_DEGREE, LR_V)
+    # value = Value(S_DIM, VALUE_POLY_DEGREE, LR_V)
+    value = Critic(S_DIM, A_DIM)
     statemodel = Dynamic_Model.Dynamic_Model()
     iteration_index = 0
     if LOAD_PARA_FLAG == 1:
@@ -56,9 +59,11 @@ if __name__ == '__main__':
             state_batch_next, utility, f_xu, mask, _, _ = statemodel.step(control)
 
             # Policy Evaluation
+            value_next = value.predict(state_batch_next)
+            target = utility + value_next
             # value_loss, grad_value = value.update(state_batch, utility, f_xu)
-            value_loss, grad_value = value.update_discrete(state_batch, state_batch_next, utility,PEV_MAX_ITERATION,
-                                                           MODEL_PRINT_FLAG, type='Adam')
+            value_loss = value.update(state_batch, target)
+            print('PEV | ' + 'value loss:{:3.3f}'.format(value_loss))
 
 
             # Policy Improvement

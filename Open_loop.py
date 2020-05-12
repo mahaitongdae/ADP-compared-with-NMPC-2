@@ -1,3 +1,14 @@
+"""
+    <Reinforcement Learning and Control>(Year 2020)
+    by Shengbo Eben Li
+        @ Intelligent Driving Lab, Tsinghua University
+
+    OCP example for lane keeping problem in a circle road
+
+    [Method]
+    Open loop solution
+
+"""
 from  casadi import *
 from matplotlib import pyplot as plt
 
@@ -53,16 +64,25 @@ def reference_trajectory(x, length, k = 1/5):
         reference_trajectory[i, :] = np.array([y, psi])
     return reference_trajectory
 
-def MPC_slover(x_init, Np):
+def main():
     # Open loop solution
     sol_dic = {'ipopt.print_level': 0, 'ipopt.sb': 'yes', 'print_time': 0}
     x = SX.sym('x', nx)
     u = SX.sym('u', nu)
-    X_init = x_init
+    X_init = [0.0, 0.0, 0.0, 0.0, 0.0]
     zero = [0., 0., 0., 0., 0.]
 
-    # discrete vehicle dynamics
-    # x:
+    # Dynamic model
+
+    # linear
+    # f = vertcat(
+    #     x[0] + T * (-u_long * sin(x[2])  - u_long * tan(x[3]) * cos(x[2])),
+    #     x[1] + T * (x[3] - (u_long * cos(x[1]) - u_long * tan(x[2]) * sin(x[1])) / 100),
+    #     x[2] + T * ((kf*(-u[0] + x[2] + a * x[3] / u_long) * cos(u[0]) + k2 * (x[2] - b * x[3] / u_long)) / (m * u_long) - x[3]),
+    #     x[3] + T * (a * (kf * (-u[0] + x[2] + a * x[3] / u_long) * cos(u[0]) - b * (kr * (x[2] - b * x[3] / u_long))) / I_zz)
+    # )
+
+    # discrete
     f = vertcat(
         x[0] + T * (u_long * sin(x[2]) + x[1] * cos(x[2])),
         x[1] + T * (-mu * F_z1 * sin(C * arctan(B * (-u[0] + (x[1] + a * x[3]) / u_long))) * cos(u[0])
@@ -87,9 +107,9 @@ def MPC_slover(x_init, Np):
     ubw += X_init
 
     # sin reference
-    reference = reference_trajectory(x_init[4], Np)
+    reference = reference_trajectory(0, Npt)
 
-    for k in range(1, Np + 1):
+    for k in range(1, Npt + 1):
         # Local control
         Uname = 'U' + str(k - 1)
         Uk = MX.sym(Uname, nu)
@@ -119,9 +139,29 @@ def MPC_slover(x_init, Np):
     # Solve NLP
     r = S(lbx=lbw, ubx=ubw, x0=0, lbg=lbg, ubg=ubg)
     print(r['x'])
-    u = np.array(r['x'])[nx+1]
+    state_all = np.array(r['x'])
+    state = np.zeros([Npt, nx]);    control = np.zeros([Npt, nu])
+    nt = nx + nu # total variable per step
 
-    return u
+    for i in range(Npt):
+        state[i] = state_all[nt * i: nt * i + nt - 1].reshape(-1)
+        control[i] = state_all[nt * i + nt - 1]
 
-def main():
+    # Draw figures
+    plt.figure(1)
+    plt.plot(range(Npt), control)
+    plt.figure(2)
+    plt.plot(state[:, 4], state[:, 0])
+    plt.show()
 
+def test():
+    ref = reference_trajectory(0, 100)
+    plt.figure(1)
+    plt.plot(ref[:, 0], ref[:, 1])
+    plt.plot(ref[:, 0], ref[:, 2])
+    plt.show()
+
+
+if __name__ == '__main__':
+    main()
+    # test()

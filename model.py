@@ -3,74 +3,110 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import PolynomialFeatures
 from Dynamic_Model import Dynamic_Model
 
-# import torch
-# import torch.nn as nn
+import torch
+import torch.nn as nn
 # import torch.nn.functional as F
 # from torch.distributions import Normal
-# from torch.nn import init
+from torch.nn import init
 
 LOG2Pi = np.log(2 * np.pi)
 
 
-class CriticRR(object):
-    def __init__(self, input_size, degree):
-        """
-        Value function with polynomial feature, linear approximation
-        update with regression
-        Parameters
-        ----------
-        input_size : int
-            state dimension
-        degree : int
-            the max degree of polynomial function
-        """
+class Critic(nn.Module):
+    """
+    value funtion with polynomial feature
+    """
 
-        po = PolynomialFeatures(degree=degree)
+    def __init__(self, input_size, output_size, order=1, lr=0.01):
+        super(Critic, self).__init__()
+
+        # generate polynomial feature using sklearn
+        self.out_size = output_size
+        po = PolynomialFeatures(degree=order)
         po.n_input_features_ = input_size
-        self._poly_feature_dim = len(po.get_feature_names())
+        self._poly_feature_dim = len(po.get_feature_names()) - 1
         self._pipeline = Pipeline([('poly', po)])
 
-        self._w = 0.2 * np.zeros((self._poly_feature_dim, 1))
+        # initial parameters of actor
+        self.layers = nn.Sequential(
+            nn.Linear(self._poly_feature_dim, 128),
+            nn.ReLU(),
+            nn.Linear(128, 128),
+            nn.ReLU(),
+            nn.Linear(128, output_size),
+            nn.Identity()
+        )
+        # initial optimizor
+        self._opt = torch.optim.Adam(self.parameters(), lr=lr)
+        self._initialize_weights()
 
-    def update(self, X, y):
+    def forward(self, x):
         """
-
         Parameters
         ----------
-        X : np.array
-            shape: (batch, state_dim)
-        y : np.array
-            shape: (batch, 1)
+        x: polynomial features, shape:[batch, feature dimension]
+
+        Returns
+        -------
+        value of current state
+        """
+        x = self.layers(x)
+        return x
+
+    def _evaluate0(self, state):
+        """
+        convert state into polynomial features, and conmpute state
+        Parameters
+        ----------
+        state: current state [batch, feature dimension]
+
+        Returns
+        -------
+        out: value tensor [batch, 1]
+        """
+
+        if len(state.shape) == 1:
+            state = state.reshape((-1, state.shape[0]))
+        elif len(state.shape) == 2:
+            state = state
+        state_tensor = self.preprocess(state)
+        out = self.forward(state_tensor)
+        return out
+
+    def predict(self, state):
+        """
+        Parameters
+        ----------
+        state: current state [batch, feature dimension]
+
+        Returns
+        -------
+        out: value np.array [batch, 1]
+        """
+        return self._evaluate0(state).detach().numpy()
+
+    def update(self, state, target_v):
+        """
+        update paramters
+        Parameters
+        ----------
+        state: state batch, shape [batch, state dimension]
+        target_v: shape [batch, 1]
 
         Returns
         -------
 
         """
-        assert X.shape[0] == y.shape[0]
-        if len(y.shape) == 1:
-            y = y.reshape(-1, 1)
-        Xp = self.preprocess(X)
-        A = Xp.T.dot(Xp)
-        n_temp = Xp.shape[1]
-        A[np.arange(n_temp), np.arange(n_temp)] += 1e-3  # Ridge Regression
-        b = Xp.T.dot(y)
-        self._w = np.linalg.solve(A, b)
 
-    def predict(self, X):
-        """
-        Doing prediction
-        Parameters
-        ----------
-        X : np.array
-            shape (batch, state_dim)
+        v = self._evaluate0(state)
+        target_v = torch.as_tensor(target_v).detach()
+        v_loss = torch.mean((v - target_v) * (v - target_v))
 
-        Returns
-        -------
-        out : np.array
-            shape : (batch, 1)
-        """
-
-        return self.preprocess(X).dot(self._w)
+        for _ in range(30):
+            self._opt.zero_grad()  # TODO
+            v_loss.backward(retain_graph=True)
+            self._opt.step()
+        return v_loss
 
     def preprocess(self, X):
         """
@@ -84,9 +120,21 @@ class CriticRR(object):
         out :  np.array
             shape : (batch, poly_dim)
         """
+
         if len(X.shape) == 1:
             X = X.reshape(1, -1)
-        return self._pipeline.fit_transform(X)
+        return torch.Tensor(self._pipeline.fit_transform(X)[:, 1:])
+
+    def _initialize_weights(self):
+        """
+        initial paramete using xavier
+        """
+
+        for m in self.modules():
+            if isinstance(m, nn.Linear):
+                init.xavier_uniform_(m.weight)
+                init.constant_(m.bias, 0.0)
+
 
 class Value(object):
     def __init__(self, input_size, degree, lr=1e-3):
