@@ -106,30 +106,7 @@ if __name__ == '__main__':
         value.save_parameters(log_dir)
         policy.save_parameters(log_dir)
 
-    plt.figure(3)
-    statemodel_plt = Dynamic_Model.Dynamic_Model()
-    statemodel_plt.set_real_state(np.array([1.0, 0.0, 0.0, 0.0, 0.0]))
-    state = statemodel_plt.get_state()
-    longitudinal_position = np.array([0.])
-    plot_length = 500
-    control = []
-    for i in range(plot_length):
-        s = statemodel_plt.get_state()
-        u = policy.predict(s)
-        s, _, _, x, F_y1, F_y2 = statemodel_plt.step(u)
-        state = np.append(state, s, axis=0)
-        longitudinal_position = np.append(longitudinal_position, x, axis=0)
-        control = np.append(control, u)
-    plt.plot(longitudinal_position, state[:, 0])
-    plt.figure(4)
-    plt.plot(range(plot_length+1), state[:, 1], label='psi')
-    plt.plot(range(plot_length+1), state[:, 2], label='beta')
-    plt.plot(range(plot_length+1), state[:, 3], label='omega')
-    plt.legend(loc='upper right')
-    plt.figure(5)
-    plt.plot(range(plot_length), control)
-    plt.show()
-    # np.savetxt('state.txt',state)
+
 
 
 
