@@ -343,10 +343,7 @@ class StateModel(Dynamics_Config):
         return deri_state.T, F_y1, F_y2, alpha_1, alpha_2
 
     def _utility(self, state, control):
-        utility = 20 * torch.pow(state[:, 0], 2)
-        utility += 0.2 * torch.pow(state[:, 2], 2)
-        utility += 10 * torch.pow(control[:, 0], 2)
-
+        utility = 20 * torch.pow(state[:, 0], 2) + 0.2 * torch.pow(state[:, 2], 2) + 10 * torch.pow(control[:, 0], 2)
         return utility
 
     def step(self, control):
@@ -355,6 +352,7 @@ class StateModel(Dynamics_Config):
         self._state = self._state + self.Ts * deri_state
         utility = self._utility(self._state,control)
         f_xu = deri_state[:, 0:4]
+        f_xu = f_xu.view(len(f_xu), 4)
         return f_xu, utility, F_y1, F_y2, alpha_1, alpha_2
 
     def get_state(self):
@@ -363,6 +361,7 @@ class StateModel(Dynamics_Config):
 
     def get_called_state(self):
         called_state = self._state[:,0:4]
+        called_state = called_state.view(len(called_state), 4)
         return called_state
 
     def set_state(self, target_state):
