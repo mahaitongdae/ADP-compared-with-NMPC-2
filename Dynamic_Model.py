@@ -255,17 +255,48 @@ class Dynamic_Model(Dynamics_Config):
 class StateModel(Dynamics_Config):
 
     def __init__(self):
-
+        self._state = torch.zeros([self.BATCH_SIZE, self.STATE_DIM])
+        self.init_state = torch.zeros([self.BATCH_SIZE, self.STATE_DIM])
+        self._reset_index = np.zeros([self.BATCH_SIZE, 1])
+        self.initialize_state()
         super(StateModel, self).__init__()
 
-    def StateFunction(self, state, control):  # 连续状态方程，state：torch.Size([1024, 2])，control：torch.Size([1024, 1])
+    def initialize_state(self):
+        self.init_state[:, 0] = torch.normal(0.0, self.y_range, [self.BATCH_SIZE,])
+        self.init_state[:, 1] = torch.normal(0.0, 0.15, [self.BATCH_SIZE,])
+        self.init_state[:, 2] = torch.normal(0.0, 0.1, [self.BATCH_SIZE,])
+        self.init_state[:, 3] = torch.normal(0.0, 0.05, [self.BATCH_SIZE,])
+        self.init_state[:, 4] = torch.zeros([self.BATCH_SIZE, ])
+        self._state = self.init_state
+        init_state = self.init_state
+        self._state.requires_grad_(True)
+        return init_state
+
+    def check_done(self):
+        threshold = np.kron(np.ones([self.BATCH_SIZE, 1]), np.array([self.y_range, self.psi_range]))
+        threshold = np.array(threshold, dtype='float32')
+        threshold = torch.from_numpy(threshold)
+        check_state = self._state[:, [0, 2]]
+        check_state.detach()
+        sign_error = torch.sign(torch.abs(check_state) - threshold) # if abs state is over threshold, sign_error = 1
+        self._reset_index, _ = torch.max(sign_error, 1) # if one state is over threshold, _reset_index = 1
+        self._reset_state()
+
+    def _reset_state(self):
+        for i in range(self.BATCH_SIZE):
+            if self._reset_index[i] == 1:
+                self._state[i, :] = self.init_state[i, :]
+
+
+    def StateFunction(self, control):  # 连续状态方程，state：torch.Size([1024, 2])，control：torch.Size([1024, 1])
 
         # 状态输入
-        y = state[:, 0]
-        u_lateral = state[:, 1]
+        y = self._state[:, 0]
+        u_lateral = self._state[:, 1]
         beta = u_lateral / self.u       # 质心侧偏角：torch.Size([1024])
-        psi = state[:, 2]
-        omega_r = state[:, 3]           # 横摆角速度：torch.Size([1024])
+        psi = self._state[:, 2]
+        omega_r = self._state[:, 3]           # 横摆角速度：torch.Size([1024])
+        x = self._state[:, 4]
 
         # 控制输入
         delta = control[:, 0]  # 前轮转角：torch.Size([1024])
@@ -287,6 +318,7 @@ class StateModel(Dynamics_Config):
         deri_u_lat = (torch.mul(F_y1, torch.cos(delta)) + F_y2) / (self.m) - self.u * omega_r
         deri_psi = omega_r
         deri_omega_r = (torch.mul(self.a * F_y1, torch.cos(delta)) - self.b * F_y2) / self.I_zz
+        deri_x = self.u * torch.cos(psi) - u_lateral * torch.sin(psi)
         # # 状态输出（对前轮转角delta做小角度假设）
         # deri_beta = (F_y1 + F_y2) / (self.m * self.u) - omega_r
         # deri_omega_r = (self.a * F_y1 - self.b * F_y2) / self.I_zz
@@ -295,19 +327,46 @@ class StateModel(Dynamics_Config):
         deri_state = torch.cat((deri_y[np.newaxis, :],
                                 deri_u_lat[np.newaxis, :],
                                 deri_psi[np.newaxis, :],
-                                deri_omega_r[np.newaxis, :]), 0)
+                                deri_omega_r[np.newaxis, :],
+                                deri_x[np.newaxis, :]), 0)
 
-        partial_deri_y, = torch.autograd.grad(deri_y, delta, retain_graph=True)
-        partial_deri_omega_r, = torch.autograd.grad(deri_omega_r, delta, retain_graph=True)
-        partial_deri_u_lat, = torch.autograd.grad(deri_u_lat, delta, retain_graph=True)
-        partial_deri_psi, = torch.autograd.grad(deri_psi, delta, retain_graph=True)
+        # partial_deri_y = torch.zeros([self.BATCH_SIZE, ])
+        # partial_deri_omega_r, = torch.autograd.grad(torch.sum(deri_omega_r), delta, retain_graph=True)
+        # partial_deri_u_lat = torch.zeros([self.BATCH_SIZE, ])
+        # partial_deri_psi, = torch.autograd.grad(torch.sum(deri_psi), delta, allow_unused=True)
+        #
+        # partial_deri = torch.cat((partial_deri_y,
+        #                         partial_deri_u_lat,
+        #                         partial_deri_psi,
+        #                         partial_deri_omega_r), 0) # TODO:verify gradients, delete when publish
 
-        partial_deri = torch.cat((partial_deri_y[np.newaxis, :],
-                                partial_deri_u_lat[np.newaxis, :],
-                                partial_deri_psi[np.newaxis, :],
-                                partial_deri_omega_r[np.newaxis, :]), 0)
+        return deri_state.T, F_y1, F_y2, alpha_1, alpha_2
 
-        return deri_state, F_y1, F_y2, alpha_1, alpha_2, partial_deri.detach().numpy()
+    def _utility(self, state, control):
+        utility = 20 * torch.pow(state[:, 0], 2)
+        utility += 0.2 * torch.pow(state[:, 2], 2)
+        utility += 10 * torch.pow(control[:, 0], 2)
+
+        return utility
+
+    def step(self, control):
+        self._state.detach()
+        deri_state, F_y1, F_y2, alpha_1, alpha_2 = self.StateFunction(control)
+        self._state = self._state + self.Ts * deri_state
+        utility = self._utility(self._state,control)
+        f_xu = deri_state[:, 0:4]
+        return f_xu, utility, F_y1, F_y2, alpha_1, alpha_2
+
+    def get_state(self):
+        state = self._state
+        return state
+
+    def get_called_state(self):
+        called_state = self._state[:,0:4]
+        return called_state
+
+    def set_state(self, target_state):
+        self._state = target_state
 
 def test():
     statemodel = Dynamic_Model()

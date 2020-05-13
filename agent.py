@@ -48,8 +48,9 @@ class Policy(object):
         Reset parameters of policy approximate.
 
         """
-        self._w = np.random.random([self._poly_feature_dim, self._out_dim]) * 0.0005
+        self._w = np.random.normal(0.0,0.005,[self._poly_feature_dim, self._out_dim])
         self._w[0, 0] = 0.0
+        # self._w = np.zeros([self._poly_feature_dim, self._out_dim])
 
     def predict(self, X):
         """
@@ -65,11 +66,6 @@ class Policy(object):
             shape : (1, action_dim)
         """
         action = self.preprocess(X).dot(self._w)
-        for i in range(action.shape[0]):
-            if action[i] >= np.pi / 6:
-                action[i] = np.pi / 6
-            elif action[i] <= -np.pi / 6:
-                action[i] = -np.pi / 6
 
         return action
 
@@ -151,16 +147,13 @@ class Policy(object):
         np.save(os.path.join(logdir, "actor"),policy_w)
 
     def load_parameters(self, load_dir):
-        policy_w = np.load(os.path.join(load_dir, 'actor.npy'))
+        policy_w = np.load(os.path.join(load_dir, 'actor.pth'))
         self.set_w(policy_w)
 
 class Actor(nn.Module):
-    """
-    stochastic policy with linear approximation and polynomial feature
-    """
-
-    def __init__(self, input_size, output_size, order=1, lr=0.01):
+    def __init__(self, input_size, output_size, order=1, lr=0.001):
         super(Actor, self).__init__()
+
         # generate polynomial feature using sklearn
         self.out_size = output_size
         po = PolynomialFeatures(degree=order)
@@ -169,17 +162,20 @@ class Actor(nn.Module):
         self._pipeline = Pipeline([('poly', po)])
 
         # initial parameters of actor
-        log_std = np.zeros(output_size)
-        self.log_sigma = torch.nn.Parameter(torch.as_tensor(log_std))
-
         self.layers = nn.Sequential(
-            nn.Linear(self._poly_feature_dim, output_size),
+            nn.Linear(self._poly_feature_dim, 128),
+            nn.ReLU(),
+            nn.Linear(128, 128),
+            nn.ReLU(),
+            nn.Linear(128, output_size),
             nn.Identity()
         )
+        # initial optimizer
+        self._opt = torch.optim.Adam(self.parameters(), lr=lr)
         self._initialize_weights()
 
-        # init optimizor
-        self._opt = torch.optim.Adam(self.parameters(), lr=lr)
+        # zeros state value
+        self._zero_state = torch.tensor([0.0, 0.0, 0.0, 0.0])
 
     def forward(self, x):
         """
@@ -189,92 +185,80 @@ class Actor(nn.Module):
 
         Returns
         -------
-        mu: mean of action
-        sigma: covarience of action
-        dist: Gaussian(mu, dist)
+        value of current state
         """
-        mu = self.layers(x)
-        mu = torch.tanh(mu) * 3.14159 / 9
-        sigma = torch.exp(self.log_sigma)
-        dist = Normal(mu, sigma)
-
-        return mu, sigma, dist
+        x = self.layers(x)
+        return x
 
     def _initialize_weights(self):
         """
-        xavier initial of parmeters
+        initial parameter using xavier
         """
+
         for m in self.modules():
-            # print(m)
             if isinstance(m, nn.Linear):
                 init.xavier_uniform_(m.weight)
                 init.constant_(m.bias, 0.0)
 
-    def choose_action(self, state):
+    def loss_function(self, utility, p_V_x, f_xu):
+
+        hamilton = utility + torch.diag(torch.mm(p_V_x, f_xu.T))
+        loss = torch.mean(hamilton)
+        return loss
+
+    def update(self, state, target_v):
         """
-        choose_action according to current state
+        update parameters
         Parameters
         ----------
-        state:  np.array; shape (batch, N_S)
+        state: state batch, shape [batch, state dimension]
+        target_v: shape [batch, 1]
 
         Returns
         -------
-        action: shape (batch, N_a)
-        mu: action without stochastic, shape (batch, N_a)
+
         """
-        if len(state.shape) == 1:
-            state = state.reshape((-1, state.shape[0]))
-        elif len(state.shape) == 2:
-            state = state
-        state_polynormial = self.preprocess(state)
-        mu, sigma, dist = self.forward(state_polynormial)
-        action = dist.rsample()
-        action = action.detach().numpy()
-        mu = mu.detach().numpy()
 
-        # action clipping
-        if action[[0]] > 3.14159 / 9:
-            action[[0]] = 3.14159 / 9
-        if action[[0]] < -3.14159 / 9:
-            action[[0]] = -3.14159 / 9
-        return action, mu
+        target_v = torch.as_tensor(target_v).detach()
+        value_base = self.forward(self._zero_state)
+        i = 0
+        while True:
+            v = self._evaluate0(state)
+            v_loss = torch.mean((v - target_v) * (v - target_v)) + 10 * torch.pow(value_base, 2)
+            self._opt.zero_grad()  # TODO
+            v_loss.backward(retain_graph=True)
+            self._opt.step()
+            i += 1
+            if v_loss.detach().numpy() < 0.1 or i >= 5:
+                break
 
-    def update(self, s_batch, a_batch, bootstrap):
-        """[summary]
+        return v_loss.detach().numpy()
 
+    def update_continuous(self, utility, p_V_x, f_xu):
+        """
+        update parameters
         Parameters
         ----------
-        s_batch : [batch, N_s]
-        a_batch : [batch, N_a]
-        bootstrap : [batch, 1]
-            [description]
+        state: state batch, shape [batch, state dimension]
+        target_v: shape [batch, 1]
 
         Returns
         -------
-        a_loss
+
         """
-        if len(s_batch.shape) == 1:
-            s_batch = s_batch.reshape((-1, s_batch.shape[0]))
 
-        # convert into tensor
-        s_batch = self.preprocess(s_batch)
-        s_batch = torch.as_tensor(s_batch).detach()
-        bootstrap = torch.as_tensor(bootstrap).detach()
-        a_batch = torch.as_tensor(a_batch).detach()
-        mu, sigma, dist = self.forward(s_batch)
-        log_pi = dist.log_prob(a_batch)
-        log_pi = log_pi.reshape(-1)
-        bootstrap = bootstrap.reshape(-1)
+        actor_base = self.forward(self._zero_state)
+        i = 0
+        while True:
+            u_loss = self.loss_function(utility, p_V_x, f_xu) + 0 * torch.pow(actor_base, 2)
+            self._opt.zero_grad()  # TODO
+            u_loss.backward(retain_graph=True)
+            self._opt.step()
+            i += 1
+            if u_loss.detach().numpy() < 0.1 or i >= 0:
+                break
 
-        # actor loss
-        a_loss = torch.mean(-log_pi * bootstrap)
-
-        # update
-        self._opt.zero_grad()
-        a_loss.backward()
-        self._opt.step()
-
-        return a_loss
+        return u_loss.detach().numpy()
 
     def preprocess(self, X):
         """
@@ -288,9 +272,16 @@ class Actor(nn.Module):
         out :  np.array
             shape : (batch, poly_dim)
         """
+
+        if len(X.shape) == 1:
+            X = X.reshape(1, -1)
         return torch.Tensor(self._pipeline.fit_transform(X)[:, 1:])
 
-    def save_parameter(self, logdir):
+    def predict(self, x):
+
+        return self.forward(x).detach().numpy()
+
+    def save_parameters(self, logdir):
         """
         save model
         Parameters
@@ -299,6 +290,9 @@ class Actor(nn.Module):
 
         """
         torch.save(self.state_dict(), os.path.join(logdir, "actor.pth"))
+
+    def load_parameters(self, load_dir):
+        self.load_state_dict(torch.load(os.path.join(load_dir,'actor.pth')))
 
 
 class Critic(nn.Module):
@@ -328,6 +322,42 @@ class Critic(nn.Module):
         # initial optimizer
         self._opt = torch.optim.Adam(self.parameters(), lr=lr)
         self._initialize_weights()
+
+        # zeros state value
+        self._zero_state = torch.tensor([0.0, 0.0, 0.0, 0.0])
+
+    def _evaluate0(self, state):
+        """
+        convert state into polynomial features, and conmpute state
+        Parameters
+        ----------
+        state: current state [batch, feature dimension]
+
+        Returns
+        -------
+        out: value tensor [batch, 1]
+        """
+
+        if len(state.shape) == 1:
+            state = state.reshape((-1, state.shape[0]))
+        elif len(state.shape) == 2:
+            state = state
+        state_tensor = self.preprocess(state)
+        out = self.forward(state_tensor)
+        return out
+
+    def predict(self, state):
+        """
+        Parameters
+        ----------
+        state: current state [batch, feature dimension]
+
+        Returns
+        -------
+        out: value np.array [batch, 1]
+        """
+
+        return self.forward(state).detach().numpy()
 
     def forward(self, x):
         """
@@ -372,7 +402,17 @@ class Critic(nn.Module):
         -------
         out: value np.array [batch, 1]
         """
-        return self._evaluate0(state).detach().numpy()
+
+        return self.forward(state).detach().numpy()
+
+    def loss_function(self, state, utility, f_xu):
+
+        # state.require_grad_(True)
+        V = self.forward(state)
+        partial_V_x, = torch.autograd.grad(torch.sum(V), state, create_graph=True)
+        hamilton = utility.detach() + torch.diag(torch.mm(partial_V_x, f_xu.T.detach()))
+        loss = 1 / 2 * torch.mean(torch.pow(hamilton, 2))
+        return loss
 
     def update(self, state, target_v):
         """
@@ -388,18 +428,45 @@ class Critic(nn.Module):
         """
 
         target_v = torch.as_tensor(target_v).detach()
+        value_base = self.forward(self._zero_state)
         i = 0
         while True:
             v = self._evaluate0(state)
-            v_loss = torch.mean((v - target_v) * (v - target_v))
+            v_loss = torch.mean((v - target_v) * (v - target_v)) + 10 * torch.pow(value_base, 2)
             self._opt.zero_grad()  # TODO
             v_loss.backward(retain_graph=True)
             self._opt.step()
             i += 1
-            if v_loss.detach().numpy() < 0.1 or i >= 100:
+            if v_loss.detach().numpy() < 0.1 or i >= 20:
                 break
 
-        return v_loss
+        return v_loss.detach().numpy()
+
+    def update_continuous(self, state, utility, f_xu):
+        """
+        update parameters
+        Parameters
+        ----------
+        state: state batch, shape [batch, state dimension]
+        target_v: shape [batch, 1]
+
+        Returns
+        -------
+
+        """
+
+        value_base = self.forward(self._zero_state)
+        i = 0
+        while True:
+            v_loss = self.loss_function(state, utility, f_xu) + 10 * torch.pow(value_base, 2)
+            self._opt.zero_grad()  # TODO
+            v_loss.backward(retain_graph=True)
+            self._opt.step()
+            i += 1
+            if v_loss < 0.1 or i >= 0:
+                break
+
+        return v_loss.detach().numpy()
 
     def preprocess(self, X):
         """
@@ -429,11 +496,10 @@ class Critic(nn.Module):
                 init.constant_(m.bias, 0.0)
 
     def get_derivative(self, state):
-        state_tensor = self.preprocess(state)
-        state_tensor.requires_grad_(True)
-        predict = self.forward(state_tensor)
-        derivative, = torch.autograd.grad(torch.sum(predict), state_tensor)
-        return derivative.detach().numpy()
+        state.requires_grad_(True)
+        predict = self.forward(state)
+        derivative, = torch.autograd.grad(torch.sum(predict), state)
+        return derivative.detach()
 
     def save_parameters(self, logdir):
         """
