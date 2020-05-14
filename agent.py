@@ -300,7 +300,7 @@ class Critic(nn.Module):
     value function with polynomial feature
     """
 
-    def __init__(self, input_size, output_size, order=1, lr=0.01):
+    def __init__(self, input_size, output_size, order=1, lr=0.001):
         super(Critic, self).__init__()
 
         # generate polynomial feature using sklearn
@@ -455,17 +455,18 @@ class Critic(nn.Module):
 
         """
 
+        self._zero_state.requires_grad_(True)
         value_base = self.forward(self._zero_state)
         i = 0
         while True:
             v_loss = self.loss_function(state, utility, f_xu) + 10 * torch.pow(value_base, 2)
             self._opt.zero_grad()  # TODO
-            v_loss.backward(retain_graph=True)
+            v_loss.backward(retain_graph=True) # TODO: retain_graph=True operation?
             self._opt.step()
             i += 1
             if v_loss < 0.1 or i >= 0:
                 break
-
+        self._zero_state.requires_grad_(False)
         return v_loss.detach().numpy()
 
     def preprocess(self, X):

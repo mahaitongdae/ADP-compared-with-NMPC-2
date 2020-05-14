@@ -23,7 +23,7 @@ if __name__ == '__main__':
     R = 20
     N = 314
     NP = 10
-    MAX_ITERATION = 1000
+    MAX_ITERATION = 10000
     LR_P = 1e-3
     LR_V = 1e-2
     S_DIM = 4
@@ -51,6 +51,7 @@ if __name__ == '__main__':
     # value = Value(S_DIM, VALUE_POLY_DEGREE, LR_V)
     value = Critic(S_DIM, A_DIM)
     statemodel = Dynamic_Model.StateModel()
+    state_batch = statemodel.get_state()
     iteration_index = 0
     if LOAD_PARA_FLAG == 1:
         load_dir = "./Results_dir/2020-05-12-23-01-100"
@@ -59,11 +60,11 @@ if __name__ == '__main__':
     if TRAIN_FLAG == 1 :
         while True:
             with torch.autograd.set_detect_anomaly(True):
-                state_batch = statemodel.get_called_state()
-                state_batch.detach()
+                state_batch.detach_()
+                state_batch.requires_grad_(True)
                 # all_state_batch = statemodel.get_all_state()
                 control = policy.forward(state_batch)
-                f_xu, utility, F_y1, F_y2, alpha_1, alpha_2 = statemodel.step(control)
+                state_batch_next, f_xu, utility, F_y1, F_y2, alpha_1, alpha_2 = statemodel.step(state_batch, control)
 
                 # # Discrete Policy Evaluation
                 # value_next = value.predict(state_batch_next)

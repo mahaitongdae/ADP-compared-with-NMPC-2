@@ -288,15 +288,15 @@ class StateModel(Dynamics_Config):
                 self._state[i, :] = self.init_state[i, :]
 
 
-    def StateFunction(self, control):  # 连续状态方程，state：torch.Size([1024, 2])，control：torch.Size([1024, 1])
+    def StateFunction(self, state, control):  # 连续状态方程，state：torch.Size([1024, 2])，control：torch.Size([1024, 1])
 
         # 状态输入
-        y = self._state[:, 0]
-        u_lateral = self._state[:, 1]
+        y = state[:, 0]
+        u_lateral = state[:, 1]
         beta = u_lateral / self.u       # 质心侧偏角：torch.Size([1024])
-        psi = self._state[:, 2]
-        omega_r = self._state[:, 3]           # 横摆角速度：torch.Size([1024])
-        x = self._state[:, 4]
+        psi = state[:, 2]
+        omega_r = state[:, 3]           # 横摆角速度：torch.Size([1024])
+        x = state[:, 4]
 
         # 控制输入
         delta = control[:, 0]  # 前轮转角：torch.Size([1024])
@@ -346,21 +346,20 @@ class StateModel(Dynamics_Config):
         utility = 20 * torch.pow(state[:, 0], 2) + 0.2 * torch.pow(state[:, 2], 2) + 10 * torch.pow(control[:, 0], 2)
         return utility
 
-    def step(self, control):
-        self._state.detach()
-        deri_state, F_y1, F_y2, alpha_1, alpha_2 = self.StateFunction(control)
-        self._state = self._state + self.Ts * deri_state
-        utility = self._utility(self._state,control)
+    def step(self, state, control):
+        deri_state, F_y1, F_y2, alpha_1, alpha_2 = self.StateFunction(state, control)
+        new_state = state + self.Ts * deri_state
+        utility = self._utility(state, control)
         f_xu = deri_state[:, 0:4]
-        f_xu = f_xu.view(len(f_xu), 4)
-        return f_xu, utility, F_y1, F_y2, alpha_1, alpha_2
+        # f_xu = f_xu.view(len(f_xu), 4)
+        return new_state, f_xu, utility, F_y1, F_y2, alpha_1, alpha_2
 
     def get_state(self):
         state = self._state
         return state
 
     def get_called_state(self):
-        called_state = self._state[:,0:4]
+        called_state = self._state[:,0:4].clone()
         called_state = called_state.view(len(called_state), 4)
         return called_state
 
