@@ -23,7 +23,7 @@ if __name__ == '__main__':
     R = 20
     N = 314
     NP = 10
-    MAX_ITERATION = 200
+    MAX_ITERATION = 30000
     LR_P = 1e-3
     LR_V = 1e-2
     S_DIM = 4
@@ -37,9 +37,7 @@ if __name__ == '__main__':
     PEV_MAX_ITERATION = 100000
     PIM_MAX_ITERATION = 2000
 
-    # ==================== Set log path ====================
-    log_dir = "./Results_dir/" + datetime.now().strftime("%Y-%m-%d-%H-%M-"+str(MAX_ITERATION))
-    os.makedirs(log_dir, exist_ok=True)
+
 
     # Set random seed
     np.random.seed(0)
@@ -123,6 +121,9 @@ if __name__ == '__main__':
                 if iteration_index >= MAX_ITERATION:
                     break
 
+        # ==================== Set log path ====================
+        log_dir = "./Results_dir/" + datetime.now().strftime("%Y-%m-%d-%H-%M-" + str(MAX_ITERATION))
+        os.makedirs(log_dir, exist_ok=True)
         value.save_parameters(log_dir)
         policy.save_parameters(log_dir)
 
