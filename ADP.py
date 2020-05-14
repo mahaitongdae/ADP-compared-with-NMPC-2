@@ -23,7 +23,7 @@ if __name__ == '__main__':
     R = 20
     N = 314
     NP = 10
-    MAX_ITERATION = 10000
+    MAX_ITERATION = 200
     LR_P = 1e-3
     LR_V = 1e-2
     S_DIM = 4
@@ -63,7 +63,8 @@ if __name__ == '__main__':
                 state_batch.detach_()
                 state_batch.requires_grad_(True)
                 # all_state_batch = statemodel.get_all_state()
-                control = policy.forward(state_batch)
+                called_state_batch = state_batch[:, 0:4]
+                control = policy.forward(called_state_batch)
                 state_batch_next, f_xu, utility, F_y1, F_y2, alpha_1, alpha_2 = statemodel.step(state_batch, control)
 
                 # # Discrete Policy Evaluation
@@ -74,7 +75,7 @@ if __name__ == '__main__':
 
                 # Continuous Policy Evaluation
 
-                value_loss = value.update_continuous(state_batch, utility, f_xu)
+                value_loss = value.update_continuous(called_state_batch, utility, f_xu)
                 # print('PEV | ' + 'value loss:{:3.3f}'.format(float(value_loss)))
 
 
@@ -99,11 +100,12 @@ if __name__ == '__main__':
                 #         break
 
                 # continuous Policy Improvement
-                p_V_x = value.get_derivative(state_batch)
+                p_V_x = value.get_derivative(called_state_batch)
                 policy_loss = policy.update_continuous(utility, p_V_x, f_xu)
 
                 # Check done
-                statemodel.check_done()
+                after_check_state = statemodel.check_done(state_batch_next)
+                state_batch = after_check_state.clone()
                 iteration_index += 1
                 # x_test = np.array([1,0.2,0.2,0.2])
                 # if iteration_index % 1000 == 0:

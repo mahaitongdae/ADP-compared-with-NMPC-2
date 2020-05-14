@@ -262,7 +262,7 @@ class StateModel(Dynamics_Config):
         super(StateModel, self).__init__()
 
     def initialize_state(self):
-        self.init_state[:, 0] = torch.normal(0.0, self.y_range, [self.BATCH_SIZE,])
+        self.init_state[:, 0] = torch.normal(0.0, 0.3, [self.BATCH_SIZE,])
         self.init_state[:, 1] = torch.normal(0.0, 0.15, [self.BATCH_SIZE,])
         self.init_state[:, 2] = torch.normal(0.0, 0.1, [self.BATCH_SIZE,])
         self.init_state[:, 3] = torch.normal(0.0, 0.05, [self.BATCH_SIZE,])
@@ -272,20 +272,22 @@ class StateModel(Dynamics_Config):
         self._state.requires_grad_(True)
         return init_state
 
-    def check_done(self):
+    def check_done(self, state):
         threshold = np.kron(np.ones([self.BATCH_SIZE, 1]), np.array([self.y_range, self.psi_range]))
         threshold = np.array(threshold, dtype='float32')
         threshold = torch.from_numpy(threshold)
-        check_state = self._state[:, [0, 2]]
-        check_state.detach()
+        check_state = state[:, [0, 2]].clone()
+        check_state.detach_()
         sign_error = torch.sign(torch.abs(check_state) - threshold) # if abs state is over threshold, sign_error = 1
         self._reset_index, _ = torch.max(sign_error, 1) # if one state is over threshold, _reset_index = 1
-        self._reset_state()
+        reset_state = self._reset_state(state)
+        return reset_state
 
-    def _reset_state(self):
+    def _reset_state(self, state):
         for i in range(self.BATCH_SIZE):
             if self._reset_index[i] == 1:
-                self._state[i, :] = self.init_state[i, :]
+                state[i, :] = self.init_state[i, :]
+        return state
 
 
     def StateFunction(self, state, control):  # 连续状态方程，state：torch.Size([1024, 2])，control：torch.Size([1024, 1])

@@ -497,7 +497,7 @@ class Critic(nn.Module):
                 init.constant_(m.bias, 0.0)
 
     def get_derivative(self, state):
-        state.requires_grad_(True)
+        # state.requires_grad_(True)
         predict = self.forward(state)
         derivative, = torch.autograd.grad(torch.sum(predict), state)
         return derivative.detach()
