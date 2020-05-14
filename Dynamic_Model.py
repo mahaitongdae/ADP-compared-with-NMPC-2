@@ -258,7 +258,7 @@ class StateModel(Dynamics_Config):
         self._state = torch.zeros([self.BATCH_SIZE, self.STATE_DIM])
         self.init_state = torch.zeros([self.BATCH_SIZE, self.STATE_DIM])
         self._reset_index = np.zeros([self.BATCH_SIZE, 1])
-        self.initialize_state()
+        self.initialize_state_oneD()
         super(StateModel, self).__init__()
 
     def initialize_state(self):
@@ -272,11 +272,29 @@ class StateModel(Dynamics_Config):
         self._state.requires_grad_(True)
         return init_state
 
+    def initialize_state_oneD(self):
+        self.init_state[:, 0] = torch.normal(0.0, 0.3, [self.BATCH_SIZE, ])
+        init_state = self.init_state
+        self._state = self.init_state
+        self._state.requires_grad_(True)
+        return init_state
+
     def check_done(self, state):
         threshold = np.kron(np.ones([self.BATCH_SIZE, 1]), np.array([self.y_range, self.psi_range]))
         threshold = np.array(threshold, dtype='float32')
         threshold = torch.from_numpy(threshold)
         check_state = state[:, [0, 2]].clone()
+        check_state.detach_()
+        sign_error = torch.sign(torch.abs(check_state) - threshold) # if abs state is over threshold, sign_error = 1
+        self._reset_index, _ = torch.max(sign_error, 1) # if one state is over threshold, _reset_index = 1
+        reset_state = self._reset_state(state)
+        return reset_state
+
+    def check_done_oneD(self, state):
+        threshold = np.kron(np.ones([self.BATCH_SIZE, 1]), np.array([self.y_range]))
+        threshold = np.array(threshold, dtype='float32')
+        threshold = torch.from_numpy(threshold)
+        check_state = state[:, 0].clone()
         check_state.detach_()
         sign_error = torch.sign(torch.abs(check_state) - threshold) # if abs state is over threshold, sign_error = 1
         self._reset_index, _ = torch.max(sign_error, 1) # if one state is over threshold, _reset_index = 1
@@ -344,17 +362,36 @@ class StateModel(Dynamics_Config):
 
         return deri_state.T, F_y1, F_y2, alpha_1, alpha_2
 
+    def StateFunction_oneD(self, inputs, u):  # input_data[:, :, 0:x_dim], output_data LQR
+        a = -1
+        b = 1  # Todo
+        X_state = inputs[:, 0]
+        u_1 = u[:, 0]
+        deri_x_state = a * X_state + b * u_1
+        return deri_x_state[:, np.newaxis]
+
     def _utility(self, state, control):
         utility = 20 * torch.pow(state[:, 0], 2) + 0.2 * torch.pow(state[:, 2], 2) + 10 * torch.pow(control[:, 0], 2)
         return utility
 
+    def _utility_oneD(self, state, control):
+        utility = 5 * torch.pow(state[:, 0], 2) +  5 * torch.pow(control[:, 0], 2)
+        return utility
+
     def step(self, state, control):
         deri_state, F_y1, F_y2, alpha_1, alpha_2 = self.StateFunction(state, control)
+        deri_state = self.StateFunction_oneD(state, control)
         new_state = state + self.Ts * deri_state
-        utility = self._utility(state, control)
+        utility = self._utility_oneD(state, control)
         f_xu = deri_state[:, 0:4]
-        # f_xu = f_xu.view(len(f_xu), 4)
         return new_state, f_xu, utility, F_y1, F_y2, alpha_1, alpha_2
+
+
+    def step_oneD(self, state, control):
+        deri_state = self.StateFunction_oneD(state, control)
+        new_state = state + self.Ts * deri_state
+        utility = self._utility_oneD(state, control)
+        return new_state, deri_state, utility
 
     def get_state(self):
         state = self._state

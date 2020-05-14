@@ -247,10 +247,10 @@ class Actor(nn.Module):
 
         """
 
-        actor_base = self.forward(self._zero_state)
+        # actor_base = self.forward(self._zero_state)
         i = 0
         while True:
-            u_loss = self.loss_function(utility, p_V_x, f_xu) + 0 * torch.pow(actor_base, 2)
+            u_loss = self.loss_function(utility, p_V_x, f_xu) # + 0 * torch.pow(actor_base, 2)
             self._opt.zero_grad()  # TODO
             u_loss.backward(retain_graph=True)
             self._opt.step()
@@ -324,7 +324,7 @@ class Critic(nn.Module):
         self._initialize_weights()
 
         # zeros state value
-        self._zero_state = torch.tensor([0.0, 0.0, 0.0, 0.0])
+        self._zero_state = torch.tensor([0.0]) # TODO: oneD change
 
     def _evaluate0(self, state):
         """
@@ -410,6 +410,7 @@ class Critic(nn.Module):
         # state.require_grad_(True)
         V = self.forward(state)
         partial_V_x, = torch.autograd.grad(torch.sum(V), state, create_graph=True)
+        partial_V_x.view([len(state), -1])
         hamilton = utility.detach() + torch.diag(torch.mm(partial_V_x, f_xu.T.detach()))
         loss = 1 / 2 * torch.mean(torch.pow(hamilton, 2))
         return loss
