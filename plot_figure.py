@@ -2,7 +2,7 @@ import Dynamic_Model
 import numpy as np
 import torch
 from matplotlib import pyplot as plt
-from agent import Policy, Actor, Critic
+from agent import Actor, Critic
 from datetime import datetime
 import os
 S_DIM = 4
@@ -22,7 +22,7 @@ policy = Actor(S_DIM, A_DIM)
 # value = Value(S_DIM, VALUE_POLY_DEGREE, LR_V)
 value = Critic(S_DIM, A_DIM)
 
-load_dir = "./Results_dir/2020-05-14-14-36-10000"
+load_dir = "./Results_dir/2020-05-15-12-31-20000"
 policy.load_parameters(load_dir)
 value.load_parameters(load_dir)
 
@@ -33,7 +33,7 @@ state = torch.tensor([[0.0, 0.0, 0.0, 0.0, 0.0]])
 state_history = state[:,0:4].detach().numpy()
 x = np.array([0.])
 longitudinal_position = x
-plot_length = 500
+plot_length = 2000
 control = []
 for i in range(plot_length):
     # lane_position, lane_angle = Trajectory(x)

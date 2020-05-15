@@ -380,9 +380,8 @@ class StateModel(Dynamics_Config):
 
     def step(self, state, control):
         deri_state, F_y1, F_y2, alpha_1, alpha_2 = self.StateFunction(state, control)
-        deri_state = self.StateFunction_oneD(state, control)
         new_state = state + self.Ts * deri_state
-        utility = self._utility_oneD(state, control)
+        utility = self._utility(state, control)
         f_xu = deri_state[:, 0:4]
         return new_state, f_xu, utility, F_y1, F_y2, alpha_1, alpha_2
 

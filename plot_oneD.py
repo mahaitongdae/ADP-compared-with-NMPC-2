@@ -22,14 +22,14 @@ policy = Actor(S_DIM, A_DIM)
 # value = Value(S_DIM, VALUE_POLY_DEGREE, LR_V)
 value = Critic(S_DIM, A_DIM)
 
-load_dir = "./Results_dir/2020-05-14-22-42-3000"
+load_dir = "./Results_dir/2020-05-15-00-20-1000"
 policy.load_parameters(load_dir)
 value.load_parameters(load_dir)
 
 plt.figure(3)
 statemodel_plt = Dynamic_Model.StateModel()
 # statemodel_plt.set_state(torch.tensor([[1.0, 0.0, 0.0, 0.0, 0.0]]))
-state = torch.tensor([[3.0]])
+state = torch.tensor([[2.0]])
 state_history = state.detach().numpy()
 plot_length = 1000
 control = []
@@ -39,7 +39,7 @@ for i in range(plot_length):
     # s_r[:, 0] = s_r[:, 0] - lane_position
     # s_r[:, 2] = s_r[:, 2] - lane_angle
     u = policy.forward(torch.from_numpy(s_r))
-    state_next, deri_state, utility = statemodel_plt.step(state, u)
+    state_next, deri_state, utility = statemodel_plt.step_oneD(state, u)
     s = state_next.detach().numpy()
     state_history = np.append(state_history, s, axis=0)
     control = np.append(control, u.detach().numpy())

@@ -2,7 +2,7 @@ from __future__ import print_function
 
 class GeneralConfig(object):
     BATCH_SIZE = 256
-    STATE_DIM = 1
+    STATE_DIM = 5
     ACTION_DIM = 1
 
 class Dynamics_Config(GeneralConfig):
@@ -29,9 +29,9 @@ class Dynamics_Config(GeneralConfig):
     rho_epect = 0.0
     rho_var = 0.3
 
-    y_range = 1.5
-    psi_range = 0.7
-    beta_range = 0.7
+    y_range = 5
+    psi_range = 1.3
+    beta_range = 1.0
 
 
 

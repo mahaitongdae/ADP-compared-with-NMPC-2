@@ -23,10 +23,10 @@ if __name__ == '__main__':
     R = 20
     N = 314
     NP = 10
-    MAX_ITERATION = 3000
+    MAX_ITERATION = 20000
     LR_P = 1e-3
     LR_V = 1e-2
-    S_DIM = 1 # TODO:change if oneD success
+    S_DIM = 5 # TODO:change if oneD success
     A_DIM = 1
     POLY_DEGREE = 2
     VALUE_POLY_DEGREE = 2
@@ -59,11 +59,11 @@ if __name__ == '__main__':
         while True:
             state_batch.detach_()
             state_batch.requires_grad_(True)
-            # called_state_batch = state_batch[:, 0:4]  #TODO: reset after oneD
-            called_state_batch = state_batch.clone()    #TODO: dimish after oneD
+            called_state_batch = state_batch[:, 0:4]  #TODO: reset after oneD
+            # called_state_batch = state_batch.clone()    #TODO: dimish after oneD
             control = policy.forward(called_state_batch)
-            # state_batch_next, f_xu, utility, F_y1, F_y2, alpha_1, alpha_2 = statemodel.step(state_batch, control)
-            state_batch_next, f_xu, utility = statemodel.step_oneD(state_batch, control)
+            state_batch_next, f_xu, utility, F_y1, F_y2, alpha_1, alpha_2 = statemodel.step(state_batch, control)
+            # state_batch_next, f_xu, utility = statemodel.step_oneD(state_batch, control)
 
             # # Discrete Policy Evaluation
             # value_next = value.predict(state_batch_next)
@@ -112,8 +112,8 @@ if __name__ == '__main__':
                         "policy_loss:{:3.3f} |" \
                         "value_loss:{:3.3f}".format(iteration_index, float(policy_loss), float(value_loss))
             print(log_trace)
-            # check_state = torch.tensor([[0.0, 0.0, 0.0, 0.0]])
-            check_state = torch.tensor([[0.0]])
+            check_state = torch.tensor([[0.0, 0.0, 0.0, 0.0]])
+            # check_state = torch.tensor([[0.5]])
             check_value = value.predict(check_state)
             check_policy = policy.predict(check_state)
             check_info = "zero state value:{:2.3f} |"\
