@@ -23,7 +23,7 @@ if __name__ == '__main__':
     R = 20
     N = 314
     NP = 10
-    MAX_ITERATION = 20000
+    MAX_ITERATION = 50000
     LR_P = 1e-3
     LR_V = 1e-2
     S_DIM = 5 # TODO:change if oneD success
