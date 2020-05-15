@@ -1,7 +1,7 @@
 from __future__ import print_function
 
 class GeneralConfig(object):
-    BATCH_SIZE = 1024
+    BATCH_SIZE = 256
     STATE_DIM = 5
     ACTION_DIM = 1
 

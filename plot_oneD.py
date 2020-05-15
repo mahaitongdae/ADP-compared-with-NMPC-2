@@ -2,7 +2,7 @@ import Dynamic_Model
 import numpy as np
 import torch
 from matplotlib import pyplot as plt
-from agent import Policy, Actor, Critic
+from agent import Actor, Critic
 from datetime import datetime
 import os
 S_DIM = 1

@@ -23,7 +23,7 @@ if __name__ == '__main__':
     R = 20
     N = 314
     NP = 10
-    MAX_ITERATION = 50000
+    MAX_ITERATION = 30000
     LR_P = 1e-3
     LR_V = 1e-2
     S_DIM = 5 # TODO:change if oneD success
@@ -52,7 +52,7 @@ if __name__ == '__main__':
     state_batch = statemodel.get_state()
     iteration_index = 0
     if LOAD_PARA_FLAG == 1:
-        load_dir = "./Results_dir/2020-05-12-23-01-100"
+        load_dir = "./Results_dir/2020-05-15-13-38-30000"
         policy.load_parameters(load_dir)
         value.load_parameters(load_dir)
     if TRAIN_FLAG == 1 :
@@ -108,17 +108,18 @@ if __name__ == '__main__':
             # x_test = np.array([1,0.2,0.2,0.2])
             # if iteration_index % 1000 == 0:
                 # print("iteration:", iteration_index, "value", value.predict(x_test), "policy:", policy.predict(x_test), "\n")
-            log_trace = "iteration:{:3d} |"\
-                        "policy_loss:{:3.3f} |" \
-                        "value_loss:{:3.3f}".format(iteration_index, float(policy_loss), float(value_loss))
-            print(log_trace)
-            check_state = torch.tensor([[0.0, 0.0, 0.0, 0.0]])
-            # check_state = torch.tensor([[0.5]])
-            check_value = value.predict(check_state)
-            check_policy = policy.predict(check_state)
-            check_info = "zero state value:{:2.3f} |"\
-                         "zero state policy:{:1.3f}".format(float(check_value), float(check_policy))
-            print(check_info)
+            if iteration_index % 200 == 0:
+                log_trace = "iteration:{:3d} |"\
+                            "policy_loss:{:3.3f} |" \
+                            "value_loss:{:3.3f}".format(iteration_index, float(policy_loss), float(value_loss))
+                print(log_trace)
+                check_state = torch.tensor([[0.0, 0.0, 0.0, 0.0]])
+                # check_state = torch.tensor([[0.5]])
+                check_value = value.predict(check_state)
+                check_policy = policy.predict(check_state)
+                check_info = "zero state value:{:2.3f} |"\
+                             "zero state policy:{:1.3f}".format(float(check_value), float(check_policy))
+                print(check_info)
             if iteration_index >= MAX_ITERATION:
                 break
 

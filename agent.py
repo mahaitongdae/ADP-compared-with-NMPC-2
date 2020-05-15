@@ -183,7 +183,7 @@ class Critic(nn.Module):
             nn.ELU(),
             nn.Linear(256, output_size),
             # nn.Identity()
-            nn.Softplus()
+            nn.ReLU()
         )
         self._norm_matrix = 0.1 * torch.tensor([2, 1, 10, 10], dtype=torch.float32)
 

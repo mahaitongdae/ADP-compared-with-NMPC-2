@@ -258,7 +258,7 @@ class StateModel(Dynamics_Config):
         self._state = torch.zeros([self.BATCH_SIZE, self.STATE_DIM])
         self.init_state = torch.zeros([self.BATCH_SIZE, self.STATE_DIM])
         self._reset_index = np.zeros([self.BATCH_SIZE, 1])
-        self.initialize_state_oneD()
+        self.initialize_state()
         super(StateModel, self).__init__()
 
     def initialize_state(self):
@@ -333,8 +333,13 @@ class StateModel(Dynamics_Config):
         F_y1 = -self.D * torch.sin(self.C * torch.atan(self.B * alpha_1)) * self.F_z1
         F_y2 = -self.D * torch.sin(self.C * torch.atan(self.B * alpha_2)) * self.F_z2
 
+        # linear
+        F_y1 = self.k1 * alpha_1
+        F_y2 = self.k2 * alpha_2
+
         # 状态输出：torch.Size([1024])
-        deri_y = self.u * torch.sin(psi) + u_lateral * torch.cos(psi)
+        # deri_y = self.u * torch.sin(psi) + u_lateral * torch.cos(psi)
+        deri_y = self.u * psi + u_lateral
         deri_u_lat = (torch.mul(F_y1, torch.cos(delta)) + F_y2) / (self.m) - self.u * omega_r
         deri_psi = omega_r
         deri_omega_r = (torch.mul(self.a * F_y1, torch.cos(delta)) - self.b * F_y2) / self.I_zz
