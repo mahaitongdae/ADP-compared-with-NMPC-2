@@ -79,7 +79,7 @@ if __name__ == '__main__':
 
             if iteration_index % 1000 == 0 or iteration_index == MAX_ITERATION:
                 # ==================== Set log path ====================
-                log_dir = "./Results_dir/" + datetime.now().strftime("%Y-%m-%d-%H-%M-" + str(MAX_ITERATION))
+                log_dir = "./Results_dir/" + datetime.now().strftime("%Y-%m-%d-%H-%M-" + str(iteration_index))
                 os.makedirs(log_dir, exist_ok=True)
                 value.save_parameters(log_dir)
                 policy.save_parameters(log_dir)
