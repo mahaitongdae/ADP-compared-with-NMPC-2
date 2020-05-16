@@ -23,10 +23,10 @@ if __name__ == '__main__':
     R = 20
     N = 314
     NP = 10
-    MAX_ITERATION = 30000
+    MAX_ITERATION = 1000
     LR_P = 1e-3
     LR_V = 1e-2
-    S_DIM = 5 # TODO:change if oneD success
+    S_DIM = 4 # TODO:change if oneD success
     A_DIM = 1
     POLY_DEGREE = 2
     VALUE_POLY_DEGREE = 2
@@ -60,54 +60,43 @@ if __name__ == '__main__':
             state_batch.detach_()
             state_batch.requires_grad_(True)
             called_state_batch = state_batch[:, 0:4]  #TODO: reset after oneD
-            # called_state_batch = state_batch.clone()    #TODO: dimish after oneD
+            # called_state_batch = state_batch.clone()    #TODO: diminish after oneD
             control = policy.forward(called_state_batch)
             state_batch_next, f_xu, utility, F_y1, F_y2, alpha_1, alpha_2 = statemodel.step(state_batch, control)
             # state_batch_next, f_xu, utility = statemodel.step_oneD(state_batch, control)
 
-            # # Discrete Policy Evaluation
-            # value_next = value.predict(state_batch_next)
-            # target = utility + value_next
-            # # value_loss, grad_value = value.update(state_batch, utility, f_xu)
-            # value_loss = value.update(state_batch, target)
+            # Discrete Policy Evaluation
+            called_state_batch_next = state_batch_next[:, 0:4]
+            value_next = value.forward(called_state_batch_next)
+            target_value = utility.detach() + value_next.detach()
+            value_now = value.forward(called_state_batch)
+            value_loss = 1/2 * torch.mean(torch.pow((target_value - value_now), 2))
+            state_batch.requires_grad_(False)
+            value.zero_grad()
+            value_loss.backward(retain_graph=True) # PIM differentiate need backpropogating through value
+            value.opt.step()
 
-            # Continuous Policy Evaluation
+            # # Continuous Policy Evaluation
+            # value_loss = value.update_continuous(called_state_batch, utility, f_xu)
+            # # print('PEV | ' + 'value loss:{:3.3f}'.format(float(value_loss)))
 
-            value_loss = value.update_continuous(called_state_batch, utility, f_xu)
-            # print('PEV | ' + 'value loss:{:3.3f}'.format(float(value_loss)))
+
+            # Discrete Policy Improvement
+            value_next = value.forward(called_state_batch_next)
+            policy_loss = torch.mean(utility + value_next) # Hamilton
+            policy.zero_grad()
+            policy_loss.backward()
+            policy.opt.step()
 
 
-            # # Discrete Policy Improvement
-            # statemodel_pim = Dynamic_Model.Dynamic_Model()
-            # PIM_iteration = 0
-            # policy.reset_parameters()
-            # while True:
-            #     statemodel_pim.set_state(all_state_batch)
-            #     control = policy.predict(state_batch)
-            #     state_batch_next_pim, utility, f_xu, x, _, _ = statemodel_pim.step(control)
-            #     p_l_u, p_f_u = statemodel_pim.get_PIM_deri(control)
-            #     p_V_x_next = value.get_derivative(state_batch_next_pim)
-            #     # policy_loss, grad_policy = policy.update(state_batch, hamilton, p_l_u, p_V_x, p_f_u)
-            #     V_next = value.predict(state_batch_next_pim)
-            #     policy_loss, grad_policy = policy.update_discrete(state_batch, utility, V_next, p_l_u, p_V_x_next, 0.01 * p_f_u)
-            #     if MODEL_PRINT_FLAG == 1:
-            #         if PIM_iteration % 500 == 0:
-            #             print('PIM | iteration:{:3d} | '.format(PIM_iteration)+'policy loss:{:3.3f}'.format(policy_loss))
-            #     PIM_iteration += 1
-            #     if policy_loss < 1e-2 or PIM_iteration > PIM_MAX_ITERATION:
-            #         break
-
-            # continuous Policy Improvement
-            p_V_x = value.get_derivative(called_state_batch)
-            policy_loss = policy.update_continuous(utility, p_V_x, f_xu)
+            # # continuous Policy Improvement
+            # p_V_x = value.get_derivative(called_state_batch)
+            # policy_loss = policy.update_continuous(utility, p_V_x, f_xu)
 
             # Check done
             after_check_state = statemodel.check_done_oneD(state_batch_next)
             state_batch = after_check_state.clone()
             iteration_index += 1
-            # x_test = np.array([1,0.2,0.2,0.2])
-            # if iteration_index % 1000 == 0:
-                # print("iteration:", iteration_index, "value", value.predict(x_test), "policy:", policy.predict(x_test), "\n")
             if iteration_index % 200 == 0:
                 log_trace = "iteration:{:3d} |"\
                             "policy_loss:{:3.3f} |" \

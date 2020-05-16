@@ -2,7 +2,7 @@ from __future__ import print_function
 
 class GeneralConfig(object):
     BATCH_SIZE = 256
-    STATE_DIM = 5
+    DYNAMICS_DIM = 5
     ACTION_DIM = 1
 
 class Dynamics_Config(GeneralConfig):
@@ -19,7 +19,7 @@ class Dynamics_Config(GeneralConfig):
     k1 = -88000    # front axle cornering stiffness for linear model (N / rad)
     k2 = -94000    # rear axle cornering stiffness for linear model (N / rad)
     Is = 1.        # steering ratio
-    Ts = 0.01       # control signal period
+    Ts = 0.05       # control signal period
     v_long = 15.   # longitudinal speed
     N = 314        # total simulation steps
 

@@ -255,8 +255,8 @@ class Dynamic_Model(Dynamics_Config):
 class StateModel(Dynamics_Config):
 
     def __init__(self):
-        self._state = torch.zeros([self.BATCH_SIZE, self.STATE_DIM])
-        self.init_state = torch.zeros([self.BATCH_SIZE, self.STATE_DIM])
+        self._state = torch.zeros([self.BATCH_SIZE, self.DYNAMICS_DIM])
+        self.init_state = torch.zeros([self.BATCH_SIZE, self.DYNAMICS_DIM])
         self._reset_index = np.zeros([self.BATCH_SIZE, 1])
         self.initialize_state()
         super(StateModel, self).__init__()
@@ -385,10 +385,10 @@ class StateModel(Dynamics_Config):
 
     def step(self, state, control):
         deri_state, F_y1, F_y2, alpha_1, alpha_2 = self.StateFunction(state, control)
-        new_state = state + self.Ts * deri_state
+        state_next = state + self.Ts * deri_state
         utility = self._utility(state, control)
         f_xu = deri_state[:, 0:4]
-        return new_state, f_xu, utility, F_y1, F_y2, alpha_1, alpha_2
+        return state_next, f_xu, utility, F_y1, F_y2, alpha_1, alpha_2
 
 
     def step_oneD(self, state, control):

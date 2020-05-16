@@ -23,19 +23,19 @@ class Actor(nn.Module):
         self._poly_feature_dim = len(po.get_feature_names()) - 1
         self._pipeline = Pipeline([('poly', po)])
         self._out_gain = PI / 9
-        self._norm_matrix = 0.1 * torch.tensor([2, 1, 10, 10], dtype=torch.float32)
+        self._norm_matrix = 0.1 * torch.tensor([1, 1, 1, 1], dtype=torch.float32)
 
         # initial parameters of actor
         self.layers = nn.Sequential(
-            nn.Linear(4, 128), # TODO: change when publish
+            nn.Linear(self._poly_feature_dim, 256), # TODO: change when publish
             nn.ELU(),
-            nn.Linear(128, 128),
+            nn.Linear(256, 256),
             nn.ELU(),
-            nn.Linear(128, output_size),
+            nn.Linear(256, output_size),
             nn.Tanh()
         )
         # initial optimizer
-        self._opt = torch.optim.Adam(self.parameters(), lr=lr)
+        self.opt = torch.optim.Adam(self.parameters(), lr=lr)
         self._initialize_weights()
 
         # zeros state value
@@ -90,9 +90,9 @@ class Actor(nn.Module):
         while True:
             v = self._evaluate0(state)
             v_loss = torch.mean((v - target_v) * (v - target_v)) + 10 * torch.pow(value_base, 2)
-            self._opt.zero_grad()  # TODO
+            self.opt.zero_grad()  # TODO
             v_loss.backward(retain_graph=True)
-            self._opt.step()
+            self.opt.step()
             i += 1
             if v_loss.detach().numpy() < 0.1 or i >= 5:
                 break
@@ -116,9 +116,9 @@ class Actor(nn.Module):
         i = 0
         while True:
             u_loss = self.loss_function(utility, p_V_x, f_xu) # + 0 * torch.pow(actor_base, 2)
-            self._opt.zero_grad()  # TODO
+            self.opt.zero_grad()  # TODO
             u_loss.backward(retain_graph=True)
-            self._opt.step()
+            self.opt.step()
             i += 1
             if u_loss.detach().numpy() < 0.1 or i >= 0:
                 break
@@ -177,7 +177,7 @@ class Critic(nn.Module):
 
         # initial parameters of actor
         self.layers = nn.Sequential(
-            nn.Linear(4, 256),
+            nn.Linear(self._poly_feature_dim, 256),
             nn.ELU(),
             nn.Linear(256, 256),
             nn.ELU(),
@@ -188,7 +188,7 @@ class Critic(nn.Module):
         self._norm_matrix = 0.1 * torch.tensor([2, 1, 10, 10], dtype=torch.float32)
 
         # initial optimizer
-        self._opt = torch.optim.Adam(self.parameters(), lr=lr)
+        self.opt = torch.optim.Adam(self.parameters(), lr=lr)
         self._initialize_weights()
 
 
@@ -304,9 +304,9 @@ class Critic(nn.Module):
         while True:
             v = self._evaluate0(state)
             v_loss = torch.mean((v - target_v) * (v - target_v)) + 10 * torch.pow(value_base, 2)
-            self._opt.zero_grad()  # TODO
+            self.opt.zero_grad()  # TODO
             v_loss.backward(retain_graph=True)
-            self._opt.step()
+            self.opt.step()
             i += 1
             if v_loss.detach().numpy() < 0.1 or i >= 20:
                 break
@@ -331,9 +331,9 @@ class Critic(nn.Module):
         i = 0
         while True:
             v_loss = self.loss_function(state, utility, f_xu) + 0.1 * torch.pow(value_base, 2)
-            self._opt.zero_grad()  # TODO
+            self.opt.zero_grad()  # TODO
             v_loss.backward(retain_graph=True) # TODO: retain_graph=True operation?
-            self._opt.step()
+            self.opt.step()
             i += 1
             if v_loss < 0.1 or i >= 0:
                 break
