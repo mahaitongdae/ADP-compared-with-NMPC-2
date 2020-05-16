@@ -3,7 +3,12 @@ from __future__ import print_function
 class GeneralConfig(object):
     BATCH_SIZE = 256
     DYNAMICS_DIM = 5
+    STATE_DIM = 4
     ACTION_DIM = 1
+    BUFFER_SIZE = 5000
+    FORWARD_STEP = 30
+    GAMMA_D = 1
+
 
 class Dynamics_Config(GeneralConfig):
     a = 1.14       # distance c.g.to front axle(m)

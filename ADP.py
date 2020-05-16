@@ -3,6 +3,7 @@ import numpy as np
 import torch
 from matplotlib import pyplot as plt
 from agent import Actor, Critic
+from Train import Train
 from datetime import datetime
 import os
 
@@ -23,7 +24,7 @@ if __name__ == '__main__':
     R = 20
     N = 314
     NP = 10
-    MAX_ITERATION = 400
+    MAX_ITERATION = 1000
     LR_P = 1e-3
     LR_V = 1e-2
     S_DIM = 4 # TODO:change if oneD success
@@ -52,55 +53,18 @@ if __name__ == '__main__':
     state_batch = statemodel.get_state()
     iteration_index = 0
     if LOAD_PARA_FLAG == 1:
-        load_dir = "./Results_dir/2020-05-15-13-38-30000"
+        load_dir = "./Results_dir/2020-05-16-17-40-5000"
         policy.load_parameters(load_dir)
         value.load_parameters(load_dir)
     if TRAIN_FLAG == 1 :
+        train = Train()
+        train.agent_batch = statemodel.initialize_agent()
         while True:
-            state_batch.detach_()
-            state_batch.requires_grad_(True)
-            called_state_batch = state_batch[:, 0:4]  #TODO: reset after oneD
-            # called_state_batch = state_batch.clone()    #TODO: diminish after oneD
-            control = policy.forward(called_state_batch)
-            state_batch_next, f_xu, utility, F_y1, F_y2, alpha_1, alpha_2 = statemodel.step(state_batch, control)
-            # state_batch_next, f_xu, utility = statemodel.step_oneD(state_batch, control)
-
-            # Discrete Policy Evaluation
-            called_state_batch_next = state_batch_next[:, 0:4]
-            value_next = value.forward(called_state_batch_next)
-            target_value = utility.detach() + value_next.detach()
-            value_now = value.forward(called_state_batch)
-            equilibrium_state = torch.tensor([[0.0, 0.0, 0.0, 0.0]])
-            value_equilibrium = value.forward(equilibrium_state)
-            value_loss = 1/2 * torch.mean(torch.pow((target_value - value_now), 2))\
-                         + 0.1 * torch.pow(value_equilibrium, 2)
-            state_batch.requires_grad_(False)
-            value.zero_grad()
-            value_loss.backward(retain_graph=True) # PIM differentiate need backpropogating through value
-            value.opt.step()
-
-            # # Continuous Policy Evaluation
-            # value_loss = value.update_continuous(called_state_batch, utility, f_xu)
-            # # print('PEV | ' + 'value loss:{:3.3f}'.format(float(value_loss)))
-
-
-            # Discrete Policy Improvement
-            value_next = value.forward(called_state_batch_next)
-            policy_loss = torch.mean(utility + value_next) # Hamilton
-            policy.zero_grad()
-            policy_loss.backward()
-            policy.opt.step()
-
-
-            # # continuous Policy Improvement
-            # p_V_x = value.get_derivative(called_state_batch)
-            # policy_loss = policy.update_continuous(utility, p_V_x, f_xu)
-
-            # Check done
-            after_check_state = statemodel.check_done_oneD(state_batch_next)
-            state_batch = after_check_state.clone()
+            train.update_state(policy, statemodel)
+            value_loss = train.update_value(policy, value, statemodel)
+            policy_loss = train.update_policy(policy,value)
             iteration_index += 1
-            if iteration_index % 200 == 0:
+            if iteration_index % 1 == 0:
                 log_trace = "iteration:{:3d} |"\
                             "policy_loss:{:3.3f} |" \
                             "value_loss:{:3.3f}".format(iteration_index, float(policy_loss), float(value_loss))
@@ -112,15 +76,16 @@ if __name__ == '__main__':
                 check_info = "zero state value:{:2.3f} |"\
                              "zero state policy:{:1.3f}".format(float(check_value), float(check_policy))
                 print(check_info)
+
+            if iteration_index % 1000 == 0:
+                # ==================== Set log path ====================
+                log_dir = "./Results_dir/" + datetime.now().strftime("%Y-%m-%d-%H-%M-" + str(MAX_ITERATION))
+                os.makedirs(log_dir, exist_ok=True)
+                value.save_parameters(log_dir)
+                policy.save_parameters(log_dir)
+
             if iteration_index >= MAX_ITERATION:
                 break
-
-        # ==================== Set log path ====================
-        log_dir = "./Results_dir/" + datetime.now().strftime("%Y-%m-%d-%H-%M-" + str(MAX_ITERATION))
-        os.makedirs(log_dir, exist_ok=True)
-        value.save_parameters(log_dir)
-        policy.save_parameters(log_dir)
-
 
 
 

@@ -181,6 +181,8 @@ class Critic(nn.Module):
             nn.ELU(),
             nn.Linear(256, 256),
             nn.ELU(),
+            nn.Linear(256, 256),
+            nn.ELU(),
             nn.Linear(256, output_size),
             # nn.Identity()
             nn.ReLU()
