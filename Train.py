@@ -19,6 +19,9 @@ class Train(GeneralConfig):
         self.u_forward = []
         self.L_forward = []
 
+        self.value_loss = np.empty([0, 1])
+        self.policy_loss = np.empty([0, 1])
+
         for i in range(self.FORWARD_STEP):
             self.u_forward.append([])
             self.L_forward.append([])
@@ -32,8 +35,8 @@ class Train(GeneralConfig):
     def update_state(self, policy, dynamics):
         self.agent_batch = dynamics.check_done(self.agent_batch)
         self.agent_batch.detach_()
-        self.state_batch = self.agent_batch[:, 0:4]
-        # self.state_batch.requires_grad_(True)
+        ref_trajectory = dynamics.reference_trajectory(self.agent_batch[:, -1])
+        self.state_batch = self.agent_batch[:, 0:4] - ref_trajectory
         self.control = policy.forward(self.state_batch)
         self.agent_batch_next, self.f_xu, self.utility, self.F_y1, self.F_y2, _, _ = \
             dynamics.step(self.agent_batch, self.control)
@@ -63,9 +66,9 @@ class Train(GeneralConfig):
                      + 3 * torch.pow(value_equilibrium, 2)
         self.state_batch.requires_grad_(False)
         value.zero_grad()
-        value_loss.backward()  # PIM differentiate need backpropogating through value?
+        value_loss.backward()
         value.opt.step()
-
+        self.value_loss = np.append(self.value_loss, value_loss.detach().numpy())
         return value_loss.detach().numpy()
 
     def update_policy(self, policy, value):
@@ -74,7 +77,11 @@ class Train(GeneralConfig):
         policy.zero_grad()
         policy_loss.backward()
         policy.opt.step()
-
+        self.policy_loss = np.append(self.policy_loss, policy_loss.detach().numpy())
         return policy_loss.detach().numpy()
+
+    def save_loss_history(self, log_dir):
+        np.savetxt(os.path.join(log_dir, "value_loss.txt"), self.value_loss)
+        np.savetxt(os.path.join(log_dir, "policy_loss.txt"), self.policy_loss)
 
 

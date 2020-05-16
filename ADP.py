@@ -24,7 +24,7 @@ if __name__ == '__main__':
     R = 20
     N = 314
     NP = 10
-    MAX_ITERATION = 10000
+    MAX_ITERATION = 100
     LR_P = 8e-4
     LR_V = 1e-3
     S_DIM = 4 # TODO:change if oneD success
@@ -85,7 +85,9 @@ if __name__ == '__main__':
                 policy.save_parameters(log_dir)
 
             if iteration_index >= MAX_ITERATION:
+                train.save_loss_history(log_dir)
                 break
+
 
 
 

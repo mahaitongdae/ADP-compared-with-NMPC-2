@@ -266,9 +266,11 @@ class StateModel(Dynamics_Config):
         self.init_state[:, 1] = torch.normal(0.0, 0.4, [self.BATCH_SIZE,])
         self.init_state[:, 2] = torch.normal(0.0, 0.15, [self.BATCH_SIZE,])
         self.init_state[:, 3] = torch.normal(0.0, 0.1, [self.BATCH_SIZE,])
-        self.init_state[:, 4] = torch.zeros([self.BATCH_SIZE, ])
+        self.init_state[:, 4] = torch.linspace(0.0, np.pi, self.BATCH_SIZE)
+        init_ref = self.reference_trajectory(self.init_state[:, 4])
+        init_ref_all = torch.cat((init_ref, torch.zeros([self.BATCH_SIZE,1])),1)
         self._state = self.init_state
-        init_state = self.init_state
+        init_state = self.init_state + init_ref_all
         return init_state
 
     def initialize_state_oneD(self):
@@ -306,7 +308,6 @@ class StateModel(Dynamics_Config):
                 state[i, :] = self.init_state[i, :]
         return state
 
-
     def StateFunction(self, state, control):  # 连续状态方程，state：torch.Size([1024, 2])，control：torch.Size([1024, 1])
 
         # 状态输入
@@ -321,12 +322,12 @@ class StateModel(Dynamics_Config):
         delta = control[:, 0]  # 前轮转角：torch.Size([1024])
         delta.requires_grad_(True)
 
-        # 前后轮侧偏角
-        alpha_1 = -delta + torch.atan(beta + self.a * omega_r / self.u)
-        alpha_2 = torch.atan(beta - self.b * omega_r / self.u)
-        # # 前后轮侧偏角（对前轮速度与x轴夹角xi以及后轮侧偏角alpha_2做小角度假设）
-        # alpha_1 = -delta + beta + self.a * omega_r / self.u
-        # alpha_2 = beta - self.b * omega_r / self.u
+        # # 前后轮侧偏角
+        # alpha_1 = -delta + torch.atan(beta + self.a * omega_r / self.u)
+        # alpha_2 = torch.atan(beta - self.b * omega_r / self.u)
+        # 前后轮侧偏角（对前轮速度与x轴夹角xi以及后轮侧偏角alpha_2做小角度假设）
+        alpha_1 = -delta + beta + self.a * omega_r / self.u
+        alpha_2 = beta - self.b * omega_r / self.u
 
         # # 前后轮侧偏力
         # F_y1 = -self.D * torch.sin(self.C * torch.atan(self.B * alpha_1)) * self.F_z1
@@ -374,6 +375,16 @@ class StateModel(Dynamics_Config):
         deri_x_state = a * X_state + b * u_1
         return deri_x_state[:, np.newaxis]
 
+    def reference_trajectory(self, state, k=0.1):
+        y_ref = torch.sin(k * state)
+        psi_ref = torch.atan(k * torch.cos(k * state))
+        zeros = torch.zeros([len(state), ])
+        state_ref = torch.cat((y_ref[np.newaxis, :],
+                                zeros[np.newaxis, :],
+                                psi_ref[np.newaxis, :],
+                                zeros[np.newaxis, :]), 0)
+        return state_ref.T
+
     def _utility(self, state, control):
         utility = 0.01 * (20 * torch.pow(state[:, 0], 2) + 10 * torch.pow(state[:, 2], 2) + 10 * torch.pow(control[:, 0], 2))
         return utility
@@ -409,12 +420,14 @@ class StateModel(Dynamics_Config):
         self._state = target_state
 
 def test():
-    statemodel = Dynamic_Model()
-    control = 0.01 * np.ones([statemodel.BATCH_SIZE, 1])
-    s, r, f_xu, position, _, _ = statemodel.step(control)
-    print(statemodel.get_PIM_deri(control))
-    statemodel.check_done()
-    print(f_xu)
+    statemodel = StateModel()
+    # control = 0.01 * np.ones([statemodel.BATCH_SIZE, 1])
+    # s, r, f_xu, position, _, _ = statemodel.step(control)
+    # print(statemodel.get_PIM_deri(control))
+    # statemodel.check_done()
+    # print(f_xu)
+    a = statemodel.reference_trajectory(torch.tensor([0.0]))
+    print(a)
 
 def test_partial_deri():
     statemodel = StateModel()
@@ -430,4 +443,4 @@ def test_partial_deri():
     print(pfu)
 
 if __name__ == "__main__":
-    test_partial_deri()
+    test()
