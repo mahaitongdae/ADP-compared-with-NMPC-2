@@ -22,7 +22,7 @@ policy = Actor(S_DIM, A_DIM)
 # value = Value(S_DIM, VALUE_POLY_DEGREE, LR_V)
 value = Critic(S_DIM, A_DIM)
 
-load_dir = "./Results_dir/2020-05-16-16-10-3000"
+load_dir = "./Results_dir/2020-05-16-19-37-500"
 policy.load_parameters(load_dir)
 value.load_parameters(load_dir)
 
@@ -48,7 +48,7 @@ for i in range(plot_length):
     control = np.append(control, u.detach().numpy())
     state = state_next
     x = s[:, -1]
-plt.plot(longitudinal_position, state_history[:, 0], label='trajectory')
+plt.plot(range(plot_length+1), state_history[:, 0], label='trajectory')
 plt.legend(loc='upper right')
 plt.figure(4)
 plt.plot(range(plot_length+1), state_history[:, 1], label='u_lat')

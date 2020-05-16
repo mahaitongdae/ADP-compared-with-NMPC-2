@@ -24,7 +24,7 @@ if __name__ == '__main__':
     R = 20
     N = 314
     NP = 10
-    MAX_ITERATION = 1000
+    MAX_ITERATION = 500
     LR_P = 1e-3
     LR_V = 1e-2
     S_DIM = 4 # TODO:change if oneD success
@@ -77,7 +77,7 @@ if __name__ == '__main__':
                              "zero state policy:{:1.3f}".format(float(check_value), float(check_policy))
                 print(check_info)
 
-            if iteration_index % 1000 == 0:
+            if iteration_index % 1000 == 0 or iteration_index == MAX_ITERATION:
                 # ==================== Set log path ====================
                 log_dir = "./Results_dir/" + datetime.now().strftime("%Y-%m-%d-%H-%M-" + str(MAX_ITERATION))
                 os.makedirs(log_dir, exist_ok=True)

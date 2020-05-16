@@ -36,9 +36,9 @@ class Dynamic_Model(Dynamics_Config):
 
     def _random_init(self):
         self._state[:, 0] = np.random.normal(0.0, self.y_range , self.BATCH_SIZE)
-        self._state[:, 1] =  np.random.normal(0.0, 0.15 , self.BATCH_SIZE)
-        self._state[:, 2] =  np.random.normal(0.0, 0.1 , self.BATCH_SIZE)
-        self._state[:, 3] =  np.random.normal(0.0, 0.05 , self.BATCH_SIZE)
+        self._state[:, 1] =  np.random.normal(0.0, 1.0 , self.BATCH_SIZE)
+        self._state[:, 2] =  np.random.normal(0.0, 0.5 , self.BATCH_SIZE)
+        self._state[:, 3] =  np.random.normal(0.0, 0.2 , self.BATCH_SIZE)
         self._state[:, 4] = 0 * PI * np.random.rand(self.BATCH_SIZE)
         init_state = self._state
         self.init_state = init_state
@@ -262,10 +262,10 @@ class StateModel(Dynamics_Config):
         super(StateModel, self).__init__()
 
     def initialize_agent(self):
-        self.init_state[:, 0] = torch.normal(0.0, 0.3, [self.BATCH_SIZE,])
-        self.init_state[:, 1] = torch.normal(0.0, 0.15, [self.BATCH_SIZE,])
-        self.init_state[:, 2] = torch.normal(0.0, 0.1, [self.BATCH_SIZE,])
-        self.init_state[:, 3] = torch.normal(0.0, 0.05, [self.BATCH_SIZE,])
+        self.init_state[:, 0] = torch.normal(0.0, 1.0, [self.BATCH_SIZE,])
+        self.init_state[:, 1] = torch.normal(0.0, 0.6, [self.BATCH_SIZE,])
+        self.init_state[:, 2] = torch.normal(0.0, 0.3, [self.BATCH_SIZE,])
+        self.init_state[:, 3] = torch.normal(0.0, 0.1, [self.BATCH_SIZE,])
         self.init_state[:, 4] = torch.zeros([self.BATCH_SIZE, ])
         self._state = self.init_state
         init_state = self.init_state
@@ -375,7 +375,7 @@ class StateModel(Dynamics_Config):
         return deri_x_state[:, np.newaxis]
 
     def _utility(self, state, control):
-        utility = 0.01 * (20 * torch.pow(state[:, 0], 2) + 0.2 * torch.pow(state[:, 2], 2) + 10 * torch.pow(control[:, 0], 2))
+        utility = 0.01 * (20 * torch.pow(state[:, 0], 2) + 20 * torch.pow(state[:, 2], 2) + 1 * torch.pow(control[:, 0], 2))
         return utility
 
     def _utility_oneD(self, state, control):
