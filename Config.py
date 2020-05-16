@@ -6,7 +6,7 @@ class GeneralConfig(object):
     STATE_DIM = 4
     ACTION_DIM = 1
     BUFFER_SIZE = 5000
-    FORWARD_STEP = 30
+    FORWARD_STEP = 10
     GAMMA_D = 1
 
 

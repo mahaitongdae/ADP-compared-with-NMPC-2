@@ -24,9 +24,9 @@ if __name__ == '__main__':
     R = 20
     N = 314
     NP = 10
-    MAX_ITERATION = 500
-    LR_P = 1e-3
-    LR_V = 1e-2
+    MAX_ITERATION = 10000
+    LR_P = 8e-4
+    LR_V = 1e-3
     S_DIM = 4 # TODO:change if oneD success
     A_DIM = 1
     POLY_DEGREE = 2
@@ -46,9 +46,9 @@ if __name__ == '__main__':
 
     # ADP solutions with structured policy
     # policy = Policy(S_DIM, A_DIM, POLY_DEGREE, LR_P)
-    policy = Actor(S_DIM, A_DIM)
+    policy = Actor(S_DIM, A_DIM, lr=LR_P)
     # value = Value(S_DIM, VALUE_POLY_DEGREE, LR_V)
-    value = Critic(S_DIM, A_DIM)
+    value = Critic(S_DIM, A_DIM, lr=LR_V)
     statemodel = Dynamic_Model.StateModel()
     state_batch = statemodel.get_state()
     iteration_index = 0

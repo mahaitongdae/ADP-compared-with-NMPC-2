@@ -22,14 +22,14 @@ policy = Actor(S_DIM, A_DIM)
 # value = Value(S_DIM, VALUE_POLY_DEGREE, LR_V)
 value = Critic(S_DIM, A_DIM)
 
-load_dir = "./Results_dir/2020-05-16-19-37-500"
+load_dir = "./Results_dir/2020-05-16-23-39-10000"
 policy.load_parameters(load_dir)
 value.load_parameters(load_dir)
 
 plt.figure(3)
 statemodel_plt = Dynamic_Model.StateModel()
 # statemodel_plt.set_state(torch.tensor([[1.0, 0.0, 0.0, 0.0, 0.0]]))
-state = torch.tensor([[1.0, 0.0, 0.0, 0.0, 0.0]])
+state = torch.tensor([[0.2, 0.0, 0.0, 0.0, 0.0]])
 state_history = state[:,0:4].detach().numpy()
 x = np.array([0.])
 longitudinal_position = x

@@ -60,7 +60,7 @@ class Train(GeneralConfig):
         equilibrium_state = torch.tensor([[0.0, 0.0, 0.0, 0.0]])
         value_equilibrium = value.forward(equilibrium_state)
         value_loss = 1 / 2 * torch.mean(torch.pow((target_value - value_now), 2)) \
-                     + 1 * torch.pow(value_equilibrium, 2)
+                     + 3 * torch.pow(value_equilibrium, 2)
         self.state_batch.requires_grad_(False)
         value.zero_grad()
         value_loss.backward()  # PIM differentiate need backpropogating through value?
