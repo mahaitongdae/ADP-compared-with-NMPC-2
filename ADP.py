@@ -23,7 +23,7 @@ if __name__ == '__main__':
     R = 20
     N = 314
     NP = 10
-    MAX_ITERATION = 1000
+    MAX_ITERATION = 400
     LR_P = 1e-3
     LR_V = 1e-2
     S_DIM = 4 # TODO:change if oneD success
@@ -70,7 +70,10 @@ if __name__ == '__main__':
             value_next = value.forward(called_state_batch_next)
             target_value = utility.detach() + value_next.detach()
             value_now = value.forward(called_state_batch)
-            value_loss = 1/2 * torch.mean(torch.pow((target_value - value_now), 2))
+            equilibrium_state = torch.tensor([[0.0, 0.0, 0.0, 0.0]])
+            value_equilibrium = value.forward(equilibrium_state)
+            value_loss = 1/2 * torch.mean(torch.pow((target_value - value_now), 2))\
+                         + 0.1 * torch.pow(value_equilibrium, 2)
             state_batch.requires_grad_(False)
             value.zero_grad()
             value_loss.backward(retain_graph=True) # PIM differentiate need backpropogating through value
