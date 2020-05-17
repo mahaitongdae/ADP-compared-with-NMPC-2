@@ -56,6 +56,13 @@ def plot_comparison(picture_dir):
                legend=["MPC", "Open-loop","ADP"],
                legend_loc="upper left"
                )
+        y_avs_error = []
+        for [i, d] in enumerate(error_data):
+            y_avs_error.append(np.mean(np.abs(d[1])))
+        print("Tracking error of lateral position:")
+        print("MPC:{:.3e} | ".format(y_avs_error[0]) +
+              "open loop:{:.3e} | ".format(y_avs_error[1]) +
+              "ADP:{:.3e} | ".format(y_avs_error[2]))
 
         mpc_psi_error = (mpc_state[:, 4], mpc_state[:, 2] -
                          np.arctan(config.k_curve * np.cos(config.k_curve * mpc_state[:, 4])))
@@ -72,6 +79,14 @@ def plot_comparison(picture_dir):
                legend_loc="upper left"
                )
 
+        psi_avs_error = []
+        for [i, d] in enumerate(psi_error_data):
+            psi_avs_error.append(np.mean(np.abs(d[1])))
+        print("Tracking error of heading angle:")
+        print("MPC:{:.3e} | ".format(psi_avs_error[0]) +
+              "open loop:{:.3e} | ".format(psi_avs_error[1]) +
+              "ADP:{:.3e} | ".format(psi_avs_error[2]))
+
         mpc_control = np.loadtxt(os.path.join(comparison_dir, 'MPC_control.txt'))
         Open_loop_control = np.loadtxt(os.path.join(comparison_dir, 'Open_loop_control.txt'))
         adp_control = np.loadtxt(os.path.join(comparison_dir, 'ADP_control.txt'))
@@ -86,6 +101,8 @@ def plot_comparison(picture_dir):
                legend=["ADP", "MPC", "Open-loop"],
                legend_loc="upper left"
                )
+
+
 
 
 def adp_simulation_plot(log_dir):
