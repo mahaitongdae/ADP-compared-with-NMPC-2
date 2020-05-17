@@ -16,7 +16,7 @@ import numpy as np
 import os
 
 def main():
-    log_dir = "./Results_dir/comparison_method"
+    log_dir = "Results_dir/Comparison_Data"
     config = Dynamics_Config()
     x_init = [0.0, 0.0, 0.033, 0.0, 0.0]
     solver=Solver()

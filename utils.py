@@ -1,9 +1,12 @@
 from matplotlib import pyplot as plt
 from Config import GeneralConfig
-class Utils(GeneralConfig):
-    def __init__(self):
+import numpy as np
 
-        super(Utils,self).__init__()
+def smooth(data, a=0.5):
+    data = np.array(data).reshape(-1, 1)
+    for ind in range(data.shape[0] - 1):
+        data[ind + 1, 0] = data[ind, 0] * (1-a) + data[ind + 1, 0] * a
+    return data
 
 def myplot(data,
            figure_num=1,

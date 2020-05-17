@@ -1,54 +1,40 @@
-import Dynamic_Model
-import numpy as np
-import torch
-from matplotlib import pyplot as plt
-from agent import Actor, Critic
-from Train import Train
-from datetime import datetime
-import os
-from plot_figure import plot_adp
-
-if __name__ == '__main__':
-    """
+"""
     <Reinforcement Learning and Control>(Year 2020)
     by Shengbo Eben Li
         @ Intelligent Driving Lab, Tsinghua University
 
-    RL example for lane keeping problem in a circle road
+    ADP example for lane keeping problem in a curve road
 
     [Method]
-    Model predictive control and approximate dynamic programming
+    Approximate dynamic programming
 
     """
+import Dynamic_Model
+import numpy as np
+import torch
+import os
+from agent import Actor, Critic
+from Train import Train
+from datetime import datetime
+from plot_figure import adp_simulation_plot
+
+if __name__ == '__main__':
+
     # Parameters
-    Q = np.diag([10, 0.2, 0, 0])
-    R = 20
-    N = 314
-    NP = 10
     MAX_ITERATION = 5000
     LR_P = 1e-4
     LR_V = 3e-4
-    S_DIM = 4 # TODO:change if oneD success
+    S_DIM = 4
     A_DIM = 1
-    POLY_DEGREE = 2
-    VALUE_POLY_DEGREE = 2
-    BATCH_SIZE = 512
     TRAIN_FLAG = 1
     LOAD_PARA_FLAG = 1
-    MODEL_PRINT_FLAG = 1
-    PEV_MAX_ITERATION = 100000
-    PIM_MAX_ITERATION = 2000
-
-
 
     # Set random seed
     np.random.seed(0)
     torch.manual_seed(0)
 
     # ADP solutions with structured policy
-    # policy = Policy(S_DIM, A_DIM, POLY_DEGREE, LR_P)
     policy = Actor(S_DIM, A_DIM, lr=LR_P)
-    # value = Value(S_DIM, VALUE_POLY_DEGREE, LR_V)
     value = Critic(S_DIM, A_DIM, lr=LR_V)
     statemodel = Dynamic_Model.StateModel()
     state_batch = statemodel.get_state()
@@ -71,7 +57,6 @@ if __name__ == '__main__':
                             "value_loss:{:3.3f}".format(iteration_index, float(policy_loss), float(value_loss))
                 print(log_trace)
                 check_state = torch.tensor([[0.0, 0.0, 0.0, 0.0]])
-                # check_state = torch.tensor([[0.5]])
                 check_value = value.predict(check_state)
                 check_policy = policy.predict(check_state)
                 check_info = "zero state value:{:2.3f} |"\
@@ -87,8 +72,8 @@ if __name__ == '__main__':
 
             if iteration_index >= MAX_ITERATION:
                 train.print_loss_figure(MAX_ITERATION, log_dir)
-                train.save_loss_history(log_dir)
-                plot_adp(log_dir)
+                train.save_data(log_dir)
+                adp_simulation_plot(log_dir)
                 break
 
 

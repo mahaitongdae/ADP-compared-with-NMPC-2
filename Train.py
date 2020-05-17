@@ -80,7 +80,7 @@ class Train(GeneralConfig):
         self.policy_loss = np.append(self.policy_loss, policy_loss.detach().numpy())
         return policy_loss.detach().numpy()
 
-    def save_loss_history(self, log_dir):
+    def save_data(self, log_dir):
         np.savetxt(os.path.join(log_dir, "value_loss.txt"), self.value_loss)
         np.savetxt(os.path.join(log_dir, "policy_loss.txt"), self.policy_loss)
 
