@@ -36,7 +36,6 @@ def plot_trajectory(picture_dir):
 def plot_adp(log_dir):
     policy = Actor(S_DIM, A_DIM)
     value = Critic(S_DIM, A_DIM)
-
     load_dir = log_dir
     policy.load_parameters(load_dir)
     value.load_parameters(load_dir)
@@ -46,11 +45,10 @@ def plot_adp(log_dir):
     x_ref = statemodel_plt.reference_trajectory(state[:, -1])
     state_r = state.detach().clone()
     state_r[:, 0:4] = state_r[:, 0:4] - x_ref
-    state_history = state[:, 0:4].detach().numpy()
+    state_history = state.detach().numpy()
     x = np.array([0.])
-    longitudinal_position = x
-    plot_length = 1000
-    control = []
+    plot_length = 500
+    control_history = []
     for i in range(plot_length):
         u = policy.forward(state_r[:, 0:4])
         state_next, deri_state, utility, F_y1, F_y2, alpha_1, alpha_2 = statemodel_plt.step(state, u)
@@ -61,10 +59,9 @@ def plot_adp(log_dir):
         state_r[:, 0:4] = state_r[:, 0:4] - x_ref
         state = state_next.clone().detach()
         s = state_next.detach().numpy()
-        state_history = np.append(state_history, s[:, 0:4], axis=0)
-        longitudinal_position = np.append(longitudinal_position, s[:, -1], axis=0)
-        control = np.append(control, u.detach().numpy())
-    trajectory = (range(plot_length+1), state_history[:, 0])
+        state_history = np.append(state_history, s, axis=0)
+        control_history = np.append(control_history, u.detach().numpy())
+    trajectory = (state_history[:, -1], state_history[:, 0])
     myplot(trajectory, 1, "xy",
            fname=os.path.join(log_dir, 'trajectory.png'),
            xlabel="longitudinal position [m]",
@@ -72,9 +69,9 @@ def plot_adp(log_dir):
            legend=["trajectory"],
            legend_loc="upper right"
     )
-    u_lat = (range(plot_length+1), state_history[:, 1])
-    psi =(range(plot_length+1), state_history[:, 2])
-    omega = (range(plot_length+1), state_history[:, 3])
+    u_lat = (state_history[:, -1], state_history[:, 1])
+    psi =(state_history[:, -1], state_history[:, 2])
+    omega = (state_history[:, -1], state_history[:, 3])
     data = [u_lat, psi, omega]
     legend=["u_lat", "$\psi$", "$\omega$"]
     myplot(data, 3, "xy",
@@ -82,14 +79,18 @@ def plot_adp(log_dir):
            xlabel="longitudinal position [m]",
            legend=legend
            )
-    control = (range(plot_length), control)
-    myplot(control, 1, "xy",
+    control_history = (state_history[1:, -1], control_history)
+    myplot(control_history, 1, "xy",
            fname=os.path.join(log_dir, 'control.png'),
            xlabel="longitudinal position [m]",
            ylabel="steering angle"
            )
+    comparison_dir = "./Results_dir/comparison_method"
+    np.savetxt(os.path.join(comparison_dir, 'ADP_state.txt'), state_history)
+    np.savetxt(os.path.join(comparison_dir, 'ADP_control.txt'), control_history)
+
 
 if __name__ == '__main__':
     Figures_dir = './Figures/'
     # plot_trajectory(Figures_dir)
-    plot_adp("./Results_dir/2020-05-17-16-43-30000-linear-FS30")
+    plot_adp("Results_dir/2020-05-17-20-57-final")

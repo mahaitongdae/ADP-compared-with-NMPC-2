@@ -25,7 +25,7 @@ if __name__ == '__main__':
     R = 20
     N = 314
     NP = 10
-    MAX_ITERATION = 20000
+    MAX_ITERATION = 5000
     LR_P = 1e-4
     LR_V = 3e-4
     S_DIM = 4 # TODO:change if oneD success
@@ -54,7 +54,7 @@ if __name__ == '__main__':
     state_batch = statemodel.get_state()
     iteration_index = 0
     if LOAD_PARA_FLAG == 1:
-        load_dir = "./Results_dir/2020-05-17-17-54-20000"
+        load_dir = "./Results_dir/2020-05-17-16-43-30000-linear-FS30"
         policy.load_parameters(load_dir)
         value.load_parameters(load_dir)
     if TRAIN_FLAG == 1 :

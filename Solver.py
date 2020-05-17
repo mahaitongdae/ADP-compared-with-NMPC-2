@@ -86,9 +86,9 @@ class Solver(Dynamics_Config):
 
 
             # Cost function
-            F_cost = Function('F_cost', [x, u], [10 * (x[0] - sin(self.k_curve * x[4])) ** 2
-                                                 + 0.2 * (x[2] - arctan(self.k_curve * cos(self.k_curve * x[4]))) ** 2
-                                                 + 20 * u[0] ** 2])
+            F_cost = Function('F_cost', [x, u], [0.1 * (x[0] - sin(self.k_curve * x[4])) ** 2
+                                                 + 0.1 * (x[2] - arctan(self.k_curve * cos(self.k_curve * x[4]))) ** 2
+                                                 + 0.001 * u[0] ** 2])
             J += F_cost(w[k * 2], w[k * 2 - 1])
 
         # Create NLP solver
@@ -97,7 +97,7 @@ class Solver(Dynamics_Config):
 
         # Solve NLP
         r = S(lbx=lbw, ubx=ubw, x0=0, lbg=lbg, ubg=ubg)
-        # print(r['x'])
+        print(r['x'])
         state_all = np.array(r['x'])
         state = np.zeros([predict_steps, self.DYNAMICS_DIM])
         control = np.zeros([predict_steps, self.ACTION_DIM])

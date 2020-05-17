@@ -6,7 +6,7 @@ class GeneralConfig(object):
     STATE_DIM = 4
     ACTION_DIM = 1
     BUFFER_SIZE = 5000
-    FORWARD_STEP = 10
+    FORWARD_STEP = 30
     GAMMA_D = 1
 
     NP = 50
@@ -27,7 +27,7 @@ class Dynamics_Config(GeneralConfig):
     k1 = -88000    # front axle cornering stiffness for linear model (N / rad)
     k2 = -94000    # rear axle cornering stiffness for linear model (N / rad)
     Is = 1.        # steering ratio
-    Ts = 0.05      # control signal period
+    Ts = 0.1       # control signal period
     N = 314        # total simulation steps
 
     F_z1 = m * g * b / L    # Vertical force on front axle

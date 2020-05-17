@@ -262,9 +262,9 @@ class StateModel(Dynamics_Config):
         super(StateModel, self).__init__()
 
     def initialize_agent(self):
-        self.init_state[:, 0] = torch.normal(0.0, 0.4, [self.BATCH_SIZE,])
-        self.init_state[:, 1] = torch.normal(0.0, 0.3, [self.BATCH_SIZE,])
-        self.init_state[:, 2] = torch.normal(0.0, 0.8, [self.BATCH_SIZE,])
+        self.init_state[:, 0] = torch.normal(0.0, 0.6, [self.BATCH_SIZE,])
+        self.init_state[:, 1] = torch.normal(0.0, 0.4, [self.BATCH_SIZE,])
+        self.init_state[:, 2] = torch.normal(0.0, 0.15, [self.BATCH_SIZE,])
         self.init_state[:, 3] = torch.normal(0.0, 0.1, [self.BATCH_SIZE,])
         self.init_state[:, 4] = torch.linspace(0.0, np.pi, self.BATCH_SIZE)
         init_ref = self.reference_trajectory(self.init_state[:, 4])
@@ -329,13 +329,13 @@ class StateModel(Dynamics_Config):
         alpha_1 = -delta + beta + self.a * omega_r / self.u
         alpha_2 = beta - self.b * omega_r / self.u
 
-        # # 前后轮侧偏力
-        # F_y1 = -self.D * torch.sin(self.C * torch.atan(self.B * alpha_1)) * self.F_z1
-        # F_y2 = -self.D * torch.sin(self.C * torch.atan(self.B * alpha_2)) * self.F_z2
+        # 前后轮侧偏力
+        F_y1 = -self.D * torch.sin(self.C * torch.atan(self.B * alpha_1)) * self.F_z1
+        F_y2 = -self.D * torch.sin(self.C * torch.atan(self.B * alpha_2)) * self.F_z2
 
-        # linear
-        F_y1 = self.k1 * alpha_1
-        F_y2 = self.k2 * alpha_2
+        # # linear
+        # F_y1 = self.k1 * alpha_1
+        # F_y2 = self.k2 * alpha_2
 
         # 状态输出：torch.Size([1024])
         deri_y = self.u * torch.sin(psi) + u_lateral * torch.cos(psi)
