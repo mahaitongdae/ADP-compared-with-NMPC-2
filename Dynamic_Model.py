@@ -262,9 +262,9 @@ class StateModel(Dynamics_Config):
         super(StateModel, self).__init__()
 
     def initialize_agent(self):
-        self.init_state[:, 0] = torch.normal(0.0, 0.6, [self.BATCH_SIZE,])
-        self.init_state[:, 1] = torch.normal(0.0, 0.4, [self.BATCH_SIZE,])
-        self.init_state[:, 2] = torch.normal(0.0, 0.15, [self.BATCH_SIZE,])
+        self.init_state[:, 0] = torch.normal(0.0, 0.4, [self.BATCH_SIZE,])
+        self.init_state[:, 1] = torch.normal(0.0, 0.3, [self.BATCH_SIZE,])
+        self.init_state[:, 2] = torch.normal(0.0, 0.8, [self.BATCH_SIZE,])
         self.init_state[:, 3] = torch.normal(0.0, 0.1, [self.BATCH_SIZE,])
         self.init_state[:, 4] = torch.linspace(0.0, np.pi, self.BATCH_SIZE)
         init_ref = self.reference_trajectory(self.init_state[:, 4])
@@ -375,7 +375,7 @@ class StateModel(Dynamics_Config):
         deri_x_state = a * X_state + b * u_1
         return deri_x_state[:, np.newaxis]
 
-    def reference_trajectory(self, state, k=0.1):
+    def reference_trajectory(self, state, k=1/30):
         y_ref = torch.sin(k * state)
         psi_ref = torch.atan(k * torch.cos(k * state))
         zeros = torch.zeros([len(state), ])
@@ -386,7 +386,7 @@ class StateModel(Dynamics_Config):
         return state_ref.T
 
     def _utility(self, state, control):
-        utility = 0.01 * (20 * torch.pow(state[:, 0], 2) + 10 * torch.pow(state[:, 2], 2) + 10 * torch.pow(control[:, 0], 2))
+        utility = 0.01 * (10 * torch.pow(state[:, 0], 2) + 10 * torch.pow(state[:, 2], 2) + 0.1 * torch.pow(control[:, 0], 2))
         return utility
 
     def _utility_oneD(self, state, control):

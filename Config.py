@@ -9,6 +9,9 @@ class GeneralConfig(object):
     FORWARD_STEP = 10
     GAMMA_D = 1
 
+    NP = 50
+    NP_TOTAL = 500
+
 
 class Dynamics_Config(GeneralConfig):
     a = 1.14       # distance c.g.to front axle(m)
@@ -24,18 +27,17 @@ class Dynamics_Config(GeneralConfig):
     k1 = -88000    # front axle cornering stiffness for linear model (N / rad)
     k2 = -94000    # rear axle cornering stiffness for linear model (N / rad)
     Is = 1.        # steering ratio
-    Ts = 0.05       # control signal period
-    v_long = 15.   # longitudinal speed
+    Ts = 0.05      # control signal period
     N = 314        # total simulation steps
 
-    F_z1 = m * g * b / L
-    F_z2 = m * g * a / L
+    F_z1 = m * g * b / L    # Vertical force on front axle
+    F_z2 = m * g * a / L    # Vertical force on rear axle
 
-    rho_epect = 0.0
-    rho_var = 0.3
+    k_curve = 1/30          # curve shape of sin(kx)
 
+    # ADP reset state range
     y_range = 5
-    psi_range = 1.3
+    psi_range = 1.7
     beta_range = 1.0
 
 

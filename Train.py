@@ -63,7 +63,7 @@ class Train(GeneralConfig):
         equilibrium_state = torch.tensor([[0.0, 0.0, 0.0, 0.0]])
         value_equilibrium = value.forward(equilibrium_state)
         value_loss = 1 / 2 * torch.mean(torch.pow((target_value - value_now), 2)) \
-                     + 3 * torch.pow(value_equilibrium, 2)
+                     + 10 * torch.pow(value_equilibrium, 2)
         self.state_batch.requires_grad_(False)
         value.zero_grad()
         value_loss.backward()
@@ -84,4 +84,12 @@ class Train(GeneralConfig):
         np.savetxt(os.path.join(log_dir, "value_loss.txt"), self.value_loss)
         np.savetxt(os.path.join(log_dir, "policy_loss.txt"), self.policy_loss)
 
+    def print_loss_figure(self, iteration, log_dir):
+        plt.figure()
+        plt.scatter(range(iteration), self.value_loss, c='r', marker=".", s=5., label="policy evaluation")
+        plt.scatter(range(iteration), self.policy_loss, c='b', marker=".", s=5., label="policy improvement")
+        plt.legend(loc='upper right')
+        plt.xlabel('iteration')
+        plt.ylabel('loss')
+        plt.savefig(os.path.join(log_dir, "loss.png"))
 
